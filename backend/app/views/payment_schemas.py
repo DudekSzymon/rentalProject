@@ -38,11 +38,27 @@ class PaymentCreate(BaseModel):
             raise ValueError('Kwota musi być większa od 0')
         return v
 
-# Schema dla Stripe payment intent
+# Stripe payment intent
 class StripePaymentCreate(BaseModel):
-    rental_id: int
+    rental_id: Optional [int] = None
     amount: Decimal
     currency: str = "pln"
+    
+    @validator('amount')
+    def validate_amount(cls, v):
+        if v <= 0:
+            raise ValueError('Kwota musi być większa od 0')
+        if v < Decimal('0.50'):
+            raise ValueError('Minimalna kwota płatności to 0.50')
+        return v
+    
+    @validator('currency')
+    def validate_currency(cls, v):
+        allowed_currencies = ['pln', 'eur', 'usd', 'gbp']
+        if v.lower() not in allowed_currencies:
+            raise ValueError(f'Obsługiwane waluty: {", ".join(allowed_currencies)}')
+        return v.lower()
+
 
 # Schema dla offline approval (admin)
 class OfflinePaymentApproval(BaseModel):
@@ -82,6 +98,7 @@ class StripePaymentResponse(BaseModel):
     payment_intent_id: str
     amount: Decimal
     currency: str
+    payment_id: int
 
 # Lista płatności
 class PaymentListResponse(BaseModel):
@@ -90,3 +107,29 @@ class PaymentListResponse(BaseModel):
     page: int
     size: int
     pages: int
+
+class StripeConfigResponse(BaseModel):
+    publishable_key: str
+    currency: str = "pln"
+
+class PaymentStatusResponse(BaseModel):
+    payment_intent_id: str
+    stripe_status: str
+    our_status: PaymentStatus
+    amount: float
+    currency: str
+    created_at: datetime
+    processed_at: Optional[datetime]
+    failure_reason: Optional[str] = None
+
+class RentalForPaymentResponse(BaseModel):
+    id: int
+    equipment_name: str
+    equipment_id: int
+    start_date: datetime
+    end_date: datetime
+    total_cost: Decimal
+    status: str
+    
+    class Config:
+        from_attributes = True

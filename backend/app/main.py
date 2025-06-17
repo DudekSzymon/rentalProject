@@ -2,7 +2,7 @@ from fastapi import FastAPI, Request, Response
 from .database import init_db
 from .config import settings
 from .middleware.cors_middleware import add_cors_middleware
-
+from fastapi.middleware.cors import CORSMiddleware
 # Import wszystkich controllerów
 from .controllers import (
     auth_controller,
@@ -18,7 +18,13 @@ app = FastAPI(
     version="1.0.0",
     description="System wypożyczalni z Google OAuth i płatnościami Stripe"
 )
-
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 # Middleware dla Google OAuth CORS
 @app.middleware("http")
 async def add_cors_headers(request: Request, call_next):

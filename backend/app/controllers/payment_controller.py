@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime
 import stripe
 import math
+import logging
 
 from ..database import get_db
 from ..models.user import User
@@ -13,11 +14,13 @@ from ..models.rental import Rental, RentalStatus
 from ..models.payment import Payment, PaymentStatus, PaymentMethod, PaymentType
 from ..views.payment_schemas import (
     PaymentCreate, PaymentResponse, PaymentListResponse,
-    StripePaymentCreate, StripePaymentResponse, OfflinePaymentApproval
+    StripePaymentCreate, StripePaymentResponse, OfflinePaymentApproval, StripeConfigResponse
 )
 from ..services.auth_service import auth_service
 from ..config import settings
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 # Konfiguracja Stripe
 stripe.api_key = settings.STRIPE_SECRET_KEY
 
@@ -36,6 +39,88 @@ def require_admin(current_user: User = Depends(get_current_user)):
     auth_service.require_admin(current_user)
     return current_user
 
+@router.get("/stripe/config", response_model=StripeConfigResponse)
+async def get_stripe_config():
+    """Pobranie konfiguracji Stripe dla frontendu"""
+    if not settings.STRIPE_PUBLISHABLE_KEY:
+        raise HTTPException(
+            status_code=status.HTTP_501_NOT_IMPLEMENTED,
+            detail="Stripe nie jest skonfigurowany"
+        )
+    
+    return StripeConfigResponse(
+        publishable_key=settings.STRIPE_PUBLISHABLE_KEY,
+        currency="pln"
+    )
+
+@router.get("/stripe/status/{payment_intent_id}")
+async def check_payment_status(
+    payment_intent_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Sprawdzenie aktualnego statusu płatności"""
+    
+    try:
+        intent = stripe.PaymentIntent.retrieve(payment_intent_id)
+        
+        payment = db.query(Payment).filter(
+            Payment.external_id == payment_intent_id,
+            Payment.user_id == current_user.id
+        ).first()
+        
+        if not payment:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Płatność nie znaleziona"
+            )
+        
+        # Mapowanie statusów Stripe na nasze
+        stripe_status_map = {
+            'succeeded': PaymentStatus.COMPLETED,
+            'processing': PaymentStatus.PROCESSING,
+            'requires_payment_method': PaymentStatus.FAILED,
+            'requires_confirmation': PaymentStatus.PENDING,
+            'requires_action': PaymentStatus.PENDING,
+            'canceled': PaymentStatus.CANCELLED
+        }
+        
+        expected_status = stripe_status_map.get(intent.status, PaymentStatus.PENDING)
+        
+        # Aktualizuj status jeśli się różni
+        if payment.status != expected_status:
+            logger.info(f"Synchronizacja statusu płatności {payment.id}: {payment.status} -> {expected_status}")
+            payment.status = expected_status
+            payment.external_status = intent.status
+            
+            if expected_status == PaymentStatus.COMPLETED and not payment.processed_at:
+                payment.processed_at = datetime.utcnow()
+                
+                # Potwierdź wypożyczenie
+                if payment.rental_id:
+                    rental = db.query(Rental).filter(Rental.id == payment.rental_id).first()
+                    if rental and rental.status == RentalStatus.PENDING:
+                        rental.status = RentalStatus.CONFIRMED
+            
+            db.commit()
+        
+        return {
+            "payment_intent_id": payment_intent_id,
+            "stripe_status": intent.status,
+            "our_status": payment.status,
+            "amount": float(payment.amount),
+            "currency": payment.currency,
+            "created_at": payment.created_at,
+            "processed_at": payment.processed_at
+        }
+        
+    except stripe.error.StripeError as e:
+        logger.error(f"Błąd przy sprawdzaniu statusu Stripe: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Błąd Stripe: {str(e)}"
+        )
+    
 @router.post("/stripe/create-payment-intent", response_model=StripePaymentResponse)
 async def create_stripe_payment_intent(
     payment_data: StripePaymentCreate,
@@ -49,59 +134,99 @@ async def create_stripe_payment_intent(
             status_code=status.HTTP_501_NOT_IMPLEMENTED,
             detail="Stripe nie jest skonfigurowany"
         )
+
+    # NOWY KOD: Sprawdzenie czy wypożyczenie istnieje (TYLKO JEŚLI rental_id podane)
+    rental = None  # Inicjalizuj rental na początku
     
-    # Sprawdzenie czy wypożyczenie istnieje i należy do użytkownika
-    rental = db.query(Rental).filter(Rental.id == payment_data.rental_id).first()
+    if payment_data.rental_id:
+        rental = db.query(Rental).filter(Rental.id == payment_data.rental_id).first()
+        
+        if not rental:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Wypożyczenie nie znalezione"
+            )
+        
+        if rental.user_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Brak uprawnień do tego wypożyczenia"
+            )
     
-    if not rental:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Wypożyczenie nie znalezione"
-        )
-    
-    if rental.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Brak uprawnień do tego wypożyczenia"
-        )
+    # Sprawdź czy już nie ma aktywnej płatności dla tego wypożyczenia (TYLKO jeśli rental_id istnieje)
+    if payment_data.rental_id:
+        existing_payment = db.query(Payment).filter(
+            Payment.rental_id == payment_data.rental_id,
+            Payment.status.in_([PaymentStatus.PENDING, PaymentStatus.PROCESSING, PaymentStatus.COMPLETED])
+        ).first()
+        
+        if existing_payment:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Dla tego wypożyczenia już istnieje aktywna płatność"
+            )
     
     try:
+        # Przygotuj metadane dla Stripe
+        metadata = {
+            'user_id': str(current_user.id),
+            'user_email': current_user.email
+        }
+        
+        # Dodaj rental_id do metadata tylko jeśli istnieje
+        if payment_data.rental_id:
+            metadata['rental_id'] = str(payment_data.rental_id)
+        else:
+            metadata['type'] = 'test_payment'
+        
+        # Przygotuj opis płatności
+        if rental and hasattr(rental, 'equipment_id'):
+            # Jeśli mamy rental, spróbuj pobrać nazwę sprzętu
+            equipment = db.query(Equipment).filter(Equipment.id == rental.equipment_id).first()
+            equipment_name = equipment.name if equipment else "Nieznany sprzęt"
+            description = f"Wypożyczenie: {equipment_name} (ID: {payment_data.rental_id})"
+        else:
+            # Dla płatności testowych lub bez rental
+            description = f"Płatność testowa - {payment_data.amount} {payment_data.currency.upper()}"
+        
         # Utworzenie Payment Intent w Stripe
         intent = stripe.PaymentIntent.create(
             amount=int(payment_data.amount * 100),  # Stripe używa groszy
-            currency=payment_data.currency,
-            metadata={
-                'rental_id': payment_data.rental_id,
-                'user_id': current_user.id,
-                'user_email': current_user.email
-            }
+            currency=payment_data.currency.lower(),
+            automatic_payment_methods={'enabled': True},  # Obsługa różnych metod płatności
+            metadata=metadata,
+            description=description
         )
         
         # Zapisanie płatności w bazie danych
         new_payment = Payment(
             user_id=current_user.id,
-            rental_id=payment_data.rental_id,
+            rental_id=payment_data.rental_id,  # Może być None
             amount=payment_data.amount,
-            currency=payment_data.currency,
+            currency=payment_data.currency.upper(),
             payment_type=PaymentType.RENTAL,
             payment_method=PaymentMethod.STRIPE,
             status=PaymentStatus.PENDING,
             external_id=intent.id,
-            description=f"Płatność za wypożyczenie #{payment_data.rental_id}"
+            description=description
         )
         
         db.add(new_payment)
         db.commit()
         db.refresh(new_payment)
         
+        logger.info(f"Utworzono Payment Intent {intent.id} dla użytkownika {current_user.email}")
+        
         return StripePaymentResponse(
             client_secret=intent.client_secret,
             payment_intent_id=intent.id,
             amount=payment_data.amount,
-            currency=payment_data.currency
+            currency=payment_data.currency,
+            payment_id=new_payment.id
         )
         
     except stripe.error.StripeError as e:
+        logger.error(f"Błąd Stripe: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Błąd Stripe: {str(e)}"
@@ -136,10 +261,11 @@ async def confirm_stripe_payment(
             payment.status = PaymentStatus.COMPLETED
             payment.processed_at = datetime.utcnow()
             
-            # Aktualizacja statusu wypożyczenia
-            rental = db.query(Rental).filter(Rental.id == payment.rental_id).first()
-            if rental and rental.status == RentalStatus.PENDING:
-                rental.status = RentalStatus.CONFIRMED
+            # Aktualizacja statusu wypożyczenia (tylko jeśli rental_id istnieje)
+            if payment.rental_id:
+                rental = db.query(Rental).filter(Rental.id == payment.rental_id).first()
+                if rental and rental.status == RentalStatus.PENDING:
+                    rental.status = RentalStatus.CONFIRMED
         
         elif intent.status == 'canceled':
             payment.status = PaymentStatus.CANCELLED
@@ -188,7 +314,7 @@ async def approve_payment_offline(
     payment.offline_notes = approval_data.notes
     payment.processed_at = datetime.utcnow()
     
-    # Aktualizacja statusu wypożyczenia
+    # Aktualizacja statusu wypożyczenia (tylko jeśli rental_id istnieje)
     if payment.rental_id:
         rental = db.query(Rental).filter(Rental.id == payment.rental_id).first()
         if rental and rental.status == RentalStatus.PENDING:
@@ -208,6 +334,7 @@ async def create_offline_payment(
     """Utworzenie płatności offline (gotówka, przelew)"""
     
     # Sprawdzenie wypożyczenia
+    rental = None
     if payment_data.rental_id:
         rental = db.query(Rental).filter(Rental.id == payment_data.rental_id).first()
         if not rental:
@@ -217,10 +344,8 @@ async def create_offline_payment(
             )
         user_id = rental.user_id
     else:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="rental_id jest wymagane"
-        )
+        # Dla płatności bez rental używaj ID admina
+        user_id = admin_user.id
     
     # Tworzenie płatności offline
     new_payment = Payment(
@@ -238,8 +363,8 @@ async def create_offline_payment(
     
     db.add(new_payment)
     
-    # Aktualizacja statusu wypożyczenia
-    if rental.status == RentalStatus.PENDING:
+    # Aktualizacja statusu wypożyczenia (tylko jeśli rental istnieje)
+    if rental and rental.status == RentalStatus.PENDING:
         rental.status = RentalStatus.CONFIRMED
     
     db.commit()

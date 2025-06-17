@@ -15,6 +15,9 @@ class Settings:
     
     # Payment Settings
     STRIPE_SECRET_KEY: str = config("STRIPE_SECRET_KEY", default="")
+    STRIPE_PUBLISHABLE_KEY: str = config("STRIPE_PUBLISHABLE_KEY", default="")
+    STRIPE_WEBHOOK_SECRET: str = config("STRIPE_WEBHOOK_SECRET", default="")
+
     
     # CORS
     FRONTEND_URL: str = config("FRONTEND_URL", default="http://localhost:5173")
@@ -26,3 +29,7 @@ if settings.GOOGLE_CLIENT_ID:
     print(f"✅ Google Client ID loaded: {settings.GOOGLE_CLIENT_ID[:20]}...")
 else:
     print("❌ Google Client ID not found!")
+if settings.STRIPE_SECRET_KEY:
+    print("✅ Stripe payments enabled")
+else:
+    print("❌ Stripe payments KEY not found!")
