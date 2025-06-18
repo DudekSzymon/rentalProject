@@ -6,12 +6,11 @@ import Payments from './pages/Payments';
 
 import './index.css';
 
-
 export default function App() {
     return (
         <Routes>
-            <Route path="/landing" element={<Landing />} />
-            <Route path="/" element={<Login />} />
+            <Route path="/" element={<Landing />} />        {/* ZMIANA: Landing jako główna */}
+            <Route path="/login" element={<Login />} />     {/* ZMIANA: Login na /login */}
             <Route path="/register" element={<Register />} />
             <Route path="/payments" element={<Payments />} />
         </Routes>

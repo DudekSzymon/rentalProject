@@ -62,7 +62,7 @@ export default function Register() {
                 localStorage.setItem("access_token", data.access_token);
             }
 
-            navigate("/landing");
+            navigate("/");
         } catch (err) {
             setError(err.message);
         } finally {
@@ -264,7 +264,7 @@ export default function Register() {
                             <p className="text-gray-400 text-sm">
                                 Masz już konto?{" "}
                                 <Link 
-                                    to="/" 
+                                    to="/login" 
                                     className="text-white font-medium hover:underline transition-all"
                                 >
                                     Zaloguj się
