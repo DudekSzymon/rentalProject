@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Button } from "../../components/ui/button";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 import { 
     Hammer, 
     Search, 
@@ -21,58 +22,11 @@ import {
 
 export default function Landing() {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-    const [user, setUser] = useState(null);
+    const { user, logout: authLogout } = useAuth();
     const navigate = useNavigate();
 
-    // Sprawdź czy użytkownik jest zalogowany
-    useEffect(() => {
-        const fetchUser = async () => {
-            const token = localStorage.getItem("access_token");
-            if (token) {
-                try {
-                    console.log("🔵 Pobieranie danych użytkownika...");
-                    
-                    // Wywołaj API żeby pobrać prawdziwe dane użytkownika
-                    const response = await fetch("http://localhost:8000/api/auth/me", {
-                        headers: {
-                            "Authorization": `Bearer ${token}`,
-                            "Content-Type": "application/json"
-                        }
-                    });
-
-                    if (response.ok) {
-                        const userData = await response.json();
-                        console.log("✅ Dane użytkownika:", userData);
-                        
-                        // Ustaw prawdziwe dane użytkownika
-                        setUser({
-                            name: `${userData.first_name} ${userData.last_name}`.trim() || userData.email,
-                            email: userData.email,
-                            provider: userData.auth_provider || 'local', // google/local
-                            firstName: userData.first_name,
-                            lastName: userData.last_name
-                        });
-                    } else {
-                        console.log("❌ Token nieprawidłowy, status:", response.status);
-                        // Token nieprawidłowy - wyloguj
-                        localStorage.removeItem("access_token");
-                        setUser(null);
-                    }
-                } catch (error) {
-                    console.error("❌ Błąd pobierania danych użytkownika:", error);
-                    // W przypadku błędu, wyloguj użytkownika
-                    localStorage.removeItem("access_token");
-                    setUser(null);
-                }
-            }
-        };
-
-        fetchUser();
-    }, []);
-
     const handleLogout = () => {
-        localStorage.removeItem("access_token");
-        setUser(null);
+        authLogout();
         navigate("/");
     };
 
@@ -103,20 +57,28 @@ export default function Landing() {
                             <a href="#kontakt" className="text-gray-300 hover:text-white transition-colors">
                                 Kontakt
                             </a>
+                            {user?.isAdmin && (
+                                <button 
+                                    onClick={() => navigate("/admin")}
+                                    className="text-yellow-400 hover:text-yellow-300 transition-colors font-medium"
+                                >
+                                    🔧 Admin Panel
+                                </button>
+                            )}
                         </div>
 
-                        {/* User Menu / Auth Buttons - ZMIENIONE */}
+                        {/* User Menu / Auth Buttons */}
                         <div className="hidden md:flex items-center space-x-4">
                             {user ? (
                                 <div className="flex items-center space-x-4">
                                     <div className="flex items-center space-x-2">
-                                        {user.provider === 'google' && (
+                                        {user.auth_provider === 'google' && (
                                             <div className="w-6 h-6 bg-gradient-to-r from-blue-500 to-red-500 rounded-full flex items-center justify-center text-xs font-bold text-white">
                                                 G
                                             </div>
                                         )}
                                         <span className="text-white text-sm">
-                                            Witaj, {user.firstName || user.name}!
+                                            Witaj, {user.first_name || user.email}!
                                         </span>
                                     </div>
                                     <Button 
@@ -159,7 +121,7 @@ export default function Landing() {
                         </div>
                     </div>
 
-                    {/* Mobile Navigation - ZMIENIONE */}
+                    {/* Mobile Navigation */}
                     {mobileMenuOpen && (
                         <div className="md:hidden border-t border-gray-800 py-4">
                             <div className="flex flex-col space-y-4">
@@ -172,17 +134,25 @@ export default function Landing() {
                                 <a href="#kontakt" className="text-gray-300 hover:text-white transition-colors px-2">
                                     Kontakt
                                 </a>
+                                {user?.isAdmin && (
+                                    <button 
+                                        onClick={() => navigate("/admin")}
+                                        className="text-yellow-400 hover:text-yellow-300 transition-colors font-medium px-2 text-left"
+                                    >
+                                        🔧 Admin Panel
+                                    </button>
+                                )}
                                 <div className="border-t border-gray-800 pt-4">
                                     {user ? (
                                         <div className="flex flex-col space-y-2 px-2">
                                             <div className="flex items-center space-x-2">
-                                                {user.provider === 'google' && (
+                                                {user.auth_provider === 'google' && (
                                                     <div className="w-6 h-6 bg-gradient-to-r from-blue-500 to-red-500 rounded-full flex items-center justify-center text-xs font-bold text-white">
                                                         G
                                                     </div>
                                                 )}
                                                 <span className="text-white text-sm">
-                                                    Witaj, {user.firstName || user.name}!
+                                                    Witaj, {user.first_name || user.email}!
                                                 </span>
                                             </div>
                                             <Button 
@@ -259,7 +229,7 @@ export default function Landing() {
                         <Button 
                             size="lg"
                             className="w-full sm:w-auto px-8 py-4 text-lg font-semibold"
-                            onClick={() => navigate("/payments")}
+                            onClick={() => navigate("/equipment")}
                         >
                             <Search className="w-5 h-5 mr-2" />
                             Przeglądaj katalog
@@ -268,6 +238,7 @@ export default function Landing() {
                             variant="outline"
                             size="lg" 
                             className="w-full sm:w-auto px-8 py-4 text-lg border-gray-600 text-gray-300 hover:bg-white/10"
+                            onClick={() => user ? navigate("/equipment") : navigate("/login")}
                         >
                             <Calendar className="w-5 h-5 mr-2" />
                             Zarezerwuj teraz
@@ -365,7 +336,10 @@ export default function Landing() {
                     </div>
 
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-                        <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10 hover:bg-white/10 transition-all cursor-pointer group">
+                        <div 
+                            className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10 hover:bg-white/10 transition-all cursor-pointer group"
+                            onClick={() => navigate("/equipment?category=drilling")}
+                        >
                             <div className="text-center">
                                 <Drill className="w-12 h-12 text-purple-400 mx-auto mb-4 group-hover:scale-110 transition-transform" />
                                 <h3 className="text-lg font-semibold text-white mb-2">Wiertarki</h3>
@@ -373,7 +347,10 @@ export default function Landing() {
                             </div>
                         </div>
 
-                        <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10 hover:bg-white/10 transition-all cursor-pointer group">
+                        <div 
+                            className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10 hover:bg-white/10 transition-all cursor-pointer group"
+                            onClick={() => navigate("/equipment?category=hand_tools")}
+                        >
                             <div className="text-center">
                                 <Wrench className="w-12 h-12 text-blue-400 mx-auto mb-4 group-hover:scale-110 transition-transform" />
                                 <h3 className="text-lg font-semibold text-white mb-2">Narzędzia ręczne</h3>
@@ -381,7 +358,10 @@ export default function Landing() {
                             </div>
                         </div>
 
-                        <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10 hover:bg-white/10 transition-all cursor-pointer group">
+                        <div 
+                            className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10 hover:bg-white/10 transition-all cursor-pointer group"
+                            onClick={() => navigate("/equipment?category=safety")}
+                        >
                             <div className="text-center">
                                 <HardHat className="w-12 h-12 text-yellow-400 mx-auto mb-4 group-hover:scale-110 transition-transform" />
                                 <h3 className="text-lg font-semibold text-white mb-2">Bezpieczeństwo</h3>
@@ -389,7 +369,10 @@ export default function Landing() {
                             </div>
                         </div>
 
-                        <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10 hover:bg-white/10 transition-all cursor-pointer group">
+                        <div 
+                            className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10 hover:bg-white/10 transition-all cursor-pointer group"
+                            onClick={() => navigate("/equipment?category=power_tools")}
+                        >
                             <div className="text-center">
                                 <Hammer className="w-12 h-12 text-green-400 mx-auto mb-4 group-hover:scale-110 transition-transform" />
                                 <h3 className="text-lg font-semibold text-white mb-2">Elektronarzędzia</h3>

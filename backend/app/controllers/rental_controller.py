@@ -36,7 +36,7 @@ def require_admin(current_user: User = Depends(get_current_user)):
 
 # ========== NOWE ENDPOINTY ==========
 
-@router.post("/pricing-preview")
+@router.get("/pricing-preview")
 async def get_rental_pricing_preview(
     equipment_id: int,
     start_date: datetime,
@@ -71,7 +71,7 @@ async def get_rental_pricing_preview(
             "pricing": None
         }
 
-@router.post("/check-availability")
+@router.get("/check-availability")
 async def check_equipment_availability(
     equipment_id: int,
     start_date: datetime,

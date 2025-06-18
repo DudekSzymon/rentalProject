@@ -1,18 +1,27 @@
 import { Routes, Route } from "react-router-dom";
+import { AuthProvider } from "./context/AuthContext";
 import Landing from "./pages/Landing/Landing";
 import Login from "./pages/Login/Login";
 import Register from "./pages/Register/Register";
 import Payments from './pages/Payments';
+import Equipment from './pages/Equipment/Equipment';
+import RentalForm from './pages/Rental/RentalForm';
+import PaymentPage from './pages/Payment/PaymentPage';
 
 import './index.css';
 
 export default function App() {
     return (
-        <Routes>
-            <Route path="/" element={<Landing />} />        {/* ZMIANA: Landing jako główna */}
-            <Route path="/login" element={<Login />} />     {/* ZMIANA: Login na /login */}
-            <Route path="/register" element={<Register />} />
-            <Route path="/payments" element={<Payments />} />
-        </Routes>
+        <AuthProvider>
+            <Routes>
+                <Route path="/" element={<Landing />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
+                <Route path="/equipment" element={<Equipment />} />
+                <Route path="/rent/:equipmentId" element={<RentalForm />} />
+                <Route path="/payment" element={<PaymentPage />} />
+                <Route path="/payments" element={<Payments />} />
+            </Routes>
+        </AuthProvider>
     );
 }

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { useNavigate, Link } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 import { Hammer, Quote } from 'lucide-react';
 
 export default function Login() {
@@ -10,6 +11,7 @@ export default function Login() {
     const [accept, setAccept] = useState(false);
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
+    const { login, googleLogin } = useAuth();
     const navigate = useNavigate();
 
     // Inicjalizacja Google Sign-In
@@ -46,78 +48,50 @@ export default function Login() {
 
     // Obsługa logowania przez Google
     const handleGoogleLogin = async (response) => {
-        setLoading(true);
-        setError("");
+    setLoading(true);
+    setError("");
+    
+    try {
+        const result = await googleLogin(response.credential);
         
-        try {
-            const res = await fetch("http://localhost:8000/api/auth/google", {
-                method: "POST",
-                headers: { 
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({ 
-                    token: response.credential 
-                }),
-                credentials: "include",
-            });
-
-            if (!res.ok) {
-                const errorData = await res.json();
-                throw new Error(errorData.detail || "Błąd logowania przez Google");
-            }
-
-            const data = await res.json();
-            
-            if (data.access_token) {
-                localStorage.setItem("access_token", data.access_token);
-            }
-
+        if (result.success) {
             navigate("/");
-        } catch (err) {
-            setError(err.message);
-        } finally {
-            setLoading(false);
+        } else {
+            setError(result.error);
         }
-    };
+    } catch (err) {
+        setError(err.message);
+    } finally {
+        setLoading(false);
+    }
+};
 
     // Standardowe logowanie emailem/hasłem
     const handleSubmit = async (e) => {
-        e.preventDefault();
-        setError("");
-        setLoading(true);
+    e.preventDefault();
+    setError("");
+    setLoading(true);
 
-        if (!accept) {
-            setError("Musisz zaakceptować warunki.");
-            setLoading(false);
-            return;
+    if (!accept) {
+        setError("Musisz zaakceptować warunki.");
+        setLoading(false);
+        return;
+    }
+
+    try {
+        const result = await login({ email, password });
+        
+        if (result.success) {
+            navigate("/");
+        } else {
+            setError(result.error);
         }
-
-        try {
-            const res = await fetch("http://localhost:8000/api/auth/login", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email, password }),
-                credentials: "include",
-            });
-            
-            if (!res.ok) {
-                const errorData = await res.json();
-                throw new Error(errorData.detail || "Błędne dane logowania");
-            }
-
-            const data = await res.json();
-            
-            if (data.access_token) {
-                localStorage.setItem("access_token", data.access_token);
-            }
-
-            navigate("/landing");
-        } catch (err) {
-            setError(err.message);
-        } finally {
-            setLoading(false);
-        }
-    };
+    } catch (err) {
+        setError(err.message);
+    } finally {
+        setLoading(false);
+    }
+};
 
     return (
         <div className="min-h-screen flex flex-col lg:flex-row">

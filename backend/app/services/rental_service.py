@@ -22,11 +22,10 @@ class RentalService:
         now = datetime.now()
         
         # Data rozpoczęcia nie może być w przeszłości (z tolerancją 1 godzina)
-        if start_date < now - timedelta(hours=1):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Data rozpoczęcia nie może być w przeszłości"
-            )
+        if start_date.date() < now.date():  # Porównuj tylko daty, bez godzin
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Data rozpoczęcia nie może być w przeszłości"
+    )
         
         # Data zakończenia musi być po dacie rozpoczęcia
         if end_date <= start_date:
@@ -197,7 +196,7 @@ class RentalService:
             )
         ).count()
         
-        MAX_ACTIVE_RENTALS = 5  # Maksymalnie 5 aktywnych wypożyczeń
+        MAX_ACTIVE_RENTALS = 100  # Maksymalnie 5 aktywnych wypożyczeń
         if active_rentals >= MAX_ACTIVE_RENTALS:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -206,16 +205,22 @@ class RentalService:
     
     def create_rental(self, rental_data: RentalCreate, user: User) -> Rental:
         """Główna metoda tworzenia wypożyczenia"""
+        start_date = rental_data.start_date
+        end_date = rental_data.end_date
+        if hasattr(start_date, 'tzinfo') and start_date.tzinfo:
+            start_date = start_date.replace(tzinfo=None)
+        if hasattr(end_date, 'tzinfo') and end_date.tzinfo:
+            end_date = end_date.replace(tzinfo=None)
         
         # 1. Walidacja dat
-        self.validate_rental_dates(rental_data.start_date, rental_data.end_date)
+        self.validate_rental_dates(start_date, end_date)
         
         # 2. Sprawdzenie dostępności sprzętu
         equipment = self.check_equipment_availability(
             rental_data.equipment_id,
             rental_data.quantity,
-            rental_data.start_date,
-            rental_data.end_date
+            start_date,
+            end_date
         )
         
         # 3. Walidacja uprawnień użytkownika
@@ -224,8 +229,8 @@ class RentalService:
         # 4. Obliczenie ceny
         pricing = self.calculate_rental_price(
             equipment,
-            rental_data.start_date,
-            rental_data.end_date,
+            start_date,
+            end_date,
             rental_data.quantity,
             rental_data.rental_period
         )
@@ -234,8 +239,8 @@ class RentalService:
         new_rental = Rental(
             user_id=user.id,
             equipment_id=rental_data.equipment_id,
-            start_date=rental_data.start_date,
-            end_date=rental_data.end_date,
+            start_date=start_date,
+            end_date=end_date,
             quantity=rental_data.quantity,
             rental_period=rental_data.rental_period,
             unit_price=pricing["unit_price"],
@@ -271,6 +276,10 @@ class RentalService:
         rental_period: RentalPeriod
     ) -> dict:
         """Podgląd ceny bez tworzenia wypożyczenia"""
+        if hasattr(start_date, 'tzinfo') and start_date.tzinfo:
+            start_date = start_date.replace(tzinfo=None)
+        if hasattr(end_date, 'tzinfo') and end_date.tzinfo:
+            end_date = end_date.replace(tzinfo=None)
         
         self.validate_rental_dates(start_date, end_date)
         
