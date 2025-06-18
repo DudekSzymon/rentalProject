@@ -57,6 +57,14 @@ export default function Landing() {
                             <a href="#kontakt" className="text-gray-300 hover:text-white transition-colors">
                                 Kontakt
                             </a>
+                            {user && (
+                                <button 
+                                    onClick={() => navigate("/my-rentals")}
+                                    className="text-blue-400 hover:text-blue-300 transition-colors font-medium"
+                                >
+                                    Moje wypożyczenia
+                                </button>
+                            )}
                             {user?.isAdmin && (
                                 <button 
                                     onClick={() => navigate("/admin")}
@@ -134,6 +142,14 @@ export default function Landing() {
                                 <a href="#kontakt" className="text-gray-300 hover:text-white transition-colors px-2">
                                     Kontakt
                                 </a>
+                                {user && (
+                                    <button 
+                                        onClick={() => navigate("/my-rentals")}
+                                        className="text-blue-400 hover:text-blue-300 transition-colors font-medium px-2 text-left"
+                                    >
+                                        Moje wypożyczenia
+                                    </button>
+                                )}
                                 {user?.isAdmin && (
                                     <button 
                                         onClick={() => navigate("/admin")}

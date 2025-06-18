@@ -138,20 +138,19 @@ async def create_stripe_payment_intent(
     # NOWY KOD: Sprawdzenie czy wypożyczenie istnieje (TYLKO JEŚLI rental_id podane)
     rental = None  # Inicjalizuj rental na początku
     
+    # NOWA LOGIKA: Anuluj istniejące pending płatności
     if payment_data.rental_id:
-        rental = db.query(Rental).filter(Rental.id == payment_data.rental_id).first()
+        existing_payments = db.query(Payment).filter(
+            Payment.rental_id == payment_data.rental_id,
+            Payment.status.in_([PaymentStatus.PENDING, PaymentStatus.PROCESSING])
+        ).all()
         
-        if not rental:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Wypożyczenie nie znalezione"
-            )
+        for existing_payment in existing_payments:
+            existing_payment.status = PaymentStatus.CANCELLED
+            logger.info(f"Anulowano poprzednią płatność {existing_payment.id}")
         
-        if rental.user_id != current_user.id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Brak uprawnień do tego wypożyczenia"
-            )
+        if existing_payments:
+            db.commit()
     
     # Sprawdź czy już nie ma aktywnej płatności dla tego wypożyczenia (TYLKO jeśli rental_id istnieje)
     if payment_data.rental_id:
