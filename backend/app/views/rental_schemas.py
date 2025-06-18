@@ -107,3 +107,37 @@ class RentalListResponse(BaseModel):
     page: int
     size: int
     pages: int
+    # Dodaj te schemas na końcu pliku rental_schemas.py (po istniejących)
+
+class RentalPricingPreview(BaseModel):
+    equipment_name: str
+    equipment_daily_rate: Decimal
+    unit_price: Decimal
+    billable_units: int
+    quantity: int
+    subtotal: Decimal
+    deposit_amount: Decimal
+    total_price: Decimal
+    duration_days: int
+
+class EquipmentAvailabilityCheck(BaseModel):
+    available: bool
+    equipment_name: Optional[str]
+    total_quantity: Optional[int]
+    available_quantity: Optional[int]
+    requested_quantity: Optional[int]
+    error: Optional[str] = None
+    conflicts: List[dict] = []
+
+class RentalCalendarEvent(BaseModel):
+    id: int
+    start_date: datetime
+    end_date: datetime
+    quantity: int
+    status: RentalStatus
+    user_id: int
+
+class EquipmentCalendarResponse(BaseModel):
+    equipment: dict
+    period: dict
+    rentals: List[RentalCalendarEvent]

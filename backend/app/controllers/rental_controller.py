@@ -1,20 +1,23 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, and_, or_
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 import math
 
 from ..database import get_db
 from ..models.user import User
 from ..models.equipment import Equipment, EquipmentStatus
 from ..models.rental import Rental, RentalStatus, RentalPeriod
+from ..models.payment import Payment, PaymentStatus
 from ..views.rental_schemas import (
     RentalCreate, RentalUpdate, RentalResponse, 
-    RentalSummary, RentalListResponse
+    RentalSummary, RentalListResponse, RentalPricingPreview,
+    EquipmentAvailabilityCheck, RentalCalendarEvent, EquipmentCalendarResponse
 )
 from ..services.auth_service import auth_service
+from ..services.rental_service import RentalService
 
 router = APIRouter()
 security = HTTPBearer()
@@ -31,17 +34,123 @@ def require_admin(current_user: User = Depends(get_current_user)):
     auth_service.require_admin(current_user)
     return current_user
 
-@router.post("", response_model=RentalResponse)
-async def create_rental(
-    rental_data: RentalCreate,
-    current_user: User = Depends(get_current_user),
+# ========== NOWE ENDPOINTY ==========
+
+@router.post("/pricing-preview")
+async def get_rental_pricing_preview(
+    equipment_id: int,
+    start_date: datetime,
+    end_date: datetime,
+    quantity: int = 1,
+    rental_period: RentalPeriod = RentalPeriod.DAILY,
     db: Session = Depends(get_db)
 ):
-    """Utworzenie nowego wypożyczenia"""
+    """Podgląd ceny wypożyczenia bez tworzenia"""
     
-    # Sprawdzenie czy sprzęt istnieje i jest dostępny
+    rental_service = RentalService(db)
+    
+    try:
+        pricing = rental_service.get_pricing_preview(
+            equipment_id=equipment_id,
+            start_date=start_date,
+            end_date=end_date,
+            quantity=quantity,
+            rental_period=rental_period
+        )
+        
+        return {
+            "success": True,
+            "pricing": pricing,
+            "message": "Cennik obliczony pomyślnie"
+        }
+        
+    except HTTPException as e:
+        return {
+            "success": False,
+            "error": e.detail,
+            "pricing": None
+        }
+
+@router.post("/check-availability")
+async def check_equipment_availability(
+    equipment_id: int,
+    start_date: datetime,
+    end_date: datetime,
+    quantity: int = 1,
+    db: Session = Depends(get_db)
+):
+    """Sprawdzenie dostępności sprzętu w danym terminie"""
+    
+    rental_service = RentalService(db)
+    
+    try:
+        equipment = rental_service.check_equipment_availability(
+            equipment_id=equipment_id,
+            quantity=quantity,
+            start_date=start_date,
+            end_date=end_date
+        )
+        
+        # Znajdź konflikty dla informacji
+        conflicting_rentals = db.query(Rental).filter(
+            and_(
+                Rental.equipment_id == equipment_id,
+                Rental.status.in_([RentalStatus.PENDING, RentalStatus.CONFIRMED, RentalStatus.ACTIVE]),
+                or_(
+                    and_(Rental.start_date <= start_date, Rental.end_date > start_date),
+                    and_(Rental.start_date < end_date, Rental.end_date >= end_date),
+                    and_(Rental.start_date >= start_date, Rental.end_date <= end_date),
+                    and_(Rental.start_date <= start_date, Rental.end_date >= end_date)
+                )
+            )
+        ).all()
+        
+        occupied_quantity = sum(rental.quantity for rental in conflicting_rentals)
+        available_quantity = equipment.quantity_total - occupied_quantity
+        
+        return {
+            "available": True,
+            "equipment_name": equipment.name,
+            "total_quantity": equipment.quantity_total,
+            "available_quantity": available_quantity,
+            "requested_quantity": quantity,
+            "conflicts": [
+                {
+                    "rental_id": rental.id,
+                    "start_date": rental.start_date,
+                    "end_date": rental.end_date,
+                    "quantity": rental.quantity,
+                    "status": rental.status
+                }
+                for rental in conflicting_rentals
+            ]
+        }
+        
+    except HTTPException as e:
+        return {
+            "available": False,
+            "error": e.detail,
+            "equipment_name": None,
+            "conflicts": []
+        }
+
+@router.get("/equipment/{equipment_id}/calendar")
+async def get_equipment_calendar(
+    equipment_id: int,
+    start_date: Optional[datetime] = Query(None),
+    end_date: Optional[datetime] = Query(None),
+    db: Session = Depends(get_db)
+):
+    """Kalendarz zajętości sprzętu"""
+    
+    # Domyślnie pokaż najbliższe 3 miesiące
+    if not start_date:
+        start_date = datetime.now().date()
+    if not end_date:
+        end_date = start_date + timedelta(days=90)
+    
     equipment = db.query(Equipment).filter(
-        Equipment.id == rental_data.equipment_id,
+        Equipment.id == equipment_id,
         Equipment.is_active == True
     ).first()
     
@@ -51,56 +160,139 @@ async def create_rental(
             detail="Sprzęt nie znaleziony"
         )
     
-    if equipment.quantity_available < rental_data.quantity:
+    # Pobierz wszystkie wypożyczenia w tym okresie
+    rentals = db.query(Rental).filter(
+        and_(
+            Rental.equipment_id == equipment_id,
+            Rental.status.in_([RentalStatus.PENDING, RentalStatus.CONFIRMED, RentalStatus.ACTIVE]),
+            Rental.start_date <= end_date,
+            Rental.end_date >= start_date
+        )
+    ).order_by(Rental.start_date).all()
+    
+    return {
+        "equipment": {
+            "id": equipment.id,
+            "name": equipment.name,
+            "total_quantity": equipment.quantity_total
+        },
+        "period": {
+            "start_date": start_date,
+            "end_date": end_date
+        },
+        "rentals": [
+            {
+                "id": rental.id,
+                "start_date": rental.start_date,
+                "end_date": rental.end_date,
+                "quantity": rental.quantity,
+                "status": rental.status,
+                "user_id": rental.user_id
+            }
+            for rental in rentals
+        ]
+    }
+
+@router.post("/{rental_id}/confirm")
+async def confirm_rental(
+    rental_id: int,
+    admin_user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """Potwierdzenie wypożyczenia przez administratora"""
+    
+    rental = db.query(Rental).filter(Rental.id == rental_id).first()
+    
+    if not rental:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Dostępne tylko {equipment.quantity_available} sztuk"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Wypożyczenie nie znalezione"
         )
     
-    if equipment.status != EquipmentStatus.AVAILABLE:
+    if rental.status != RentalStatus.PENDING:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Sprzęt nie jest dostępny do wypożyczenia"
+            detail=f"Wypożyczenie ma status {rental.status}, można potwierdzić tylko PENDING"
         )
     
-    # Obliczenie ceny
-    duration_days = (rental_data.end_date - rental_data.start_date).days
+    # Sprawdź czy płatność została opłacona
+    successful_payment = db.query(Payment).filter(
+        and_(
+            Payment.rental_id == rental_id,
+            Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.OFFLINE_APPROVED])
+        )
+    ).first()
     
-    if rental_data.rental_period == RentalPeriod.DAILY:
-        unit_price = equipment.daily_rate
-        total_price = unit_price * duration_days * rental_data.quantity
-    elif rental_data.rental_period == RentalPeriod.WEEKLY:
-        weeks = math.ceil(duration_days / 7)
-        unit_price = equipment.weekly_rate or equipment.daily_rate * 7
-        total_price = unit_price * weeks * rental_data.quantity
-    else:  # MONTHLY
-        months = math.ceil(duration_days / 30)
-        unit_price = equipment.monthly_rate or equipment.daily_rate * 30
-        total_price = unit_price * months * rental_data.quantity
+    if not successful_payment:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Wypożyczenie nie może być potwierdzone - brak opłaconej płatności"
+        )
     
-    # Tworzenie wypożyczenia
-    new_rental = Rental(
-        user_id=current_user.id,
-        equipment_id=rental_data.equipment_id,
-        start_date=rental_data.start_date,
-        end_date=rental_data.end_date,
-        quantity=rental_data.quantity,
-        rental_period=rental_data.rental_period,
-        unit_price=unit_price,
-        total_price=total_price,
-        deposit_amount=unit_price * 0.2,  # 20% kaucji
-        notes=rental_data.notes,
-        pickup_address=rental_data.pickup_address,
-        return_address=rental_data.return_address,
-        delivery_required=rental_data.delivery_required,
-        status=RentalStatus.PENDING
-    )
+    # Ponownie sprawdź dostępność (mogło się coś zmienić)
+    rental_service = RentalService(db)
+    try:
+        rental_service.check_equipment_availability(
+            rental.equipment_id,
+            rental.quantity,
+            rental.start_date,
+            rental.end_date,
+            exclude_rental_id=rental_id
+        )
+    except HTTPException as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Sprzęt nie jest już dostępny: {e.detail}"
+        )
     
-    db.add(new_rental)
+    # Potwierdź wypożyczenie
+    rental.status = RentalStatus.CONFIRMED
+    
+    # Zaktualizuj dostępność sprzętu
+    equipment = db.query(Equipment).filter(Equipment.id == rental.equipment_id).first()
+    equipment.quantity_available -= rental.quantity
+    
     db.commit()
-    db.refresh(new_rental)
     
-    return RentalResponse.from_orm(new_rental)
+    return {
+        "message": "Wypożyczenie zostało potwierdzone",
+        "rental_id": rental_id,
+        "new_status": rental.status
+    }
+
+# ========== POPRAWIONE ISTNIEJĄCE ENDPOINTY ==========
+
+@router.post("", response_model=RentalResponse)
+async def create_rental(
+    rental_data: RentalCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Utworzenie nowego wypożyczenia z pełną walidacją"""
+    
+    rental_service = RentalService(db)
+    
+    try:
+        # Użyj service do utworzenia wypożyczenia
+        new_rental = rental_service.create_rental(rental_data, current_user)
+        
+        # Dodaj informacje o użytkowniku i sprzęcie do odpowiedzi
+        user = db.query(User).filter(User.id == new_rental.user_id).first()
+        equipment = db.query(Equipment).filter(Equipment.id == new_rental.equipment_id).first()
+        
+        rental_dict = RentalResponse.from_orm(new_rental).dict()
+        rental_dict["user_email"] = user.email if user else None
+        rental_dict["equipment_name"] = equipment.name if equipment else None
+        
+        return RentalResponse(**rental_dict)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Nieoczekiwany błąd: {str(e)}"
+        )
 
 @router.get("", response_model=RentalListResponse)
 async def get_my_rentals(
