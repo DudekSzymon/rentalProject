@@ -1,56 +1,102 @@
-import '@testing-library/jest-dom';
+import { expect, afterEach, vi, beforeAll, afterAll } from 'vitest'
+import { cleanup } from '@testing-library/react'
+import * as matchers from '@testing-library/jest-dom/matchers'
+
+// Extend Vitest's expect with jest-dom matchers
+expect.extend(matchers)
+
+// Cleanup after each test
+afterEach(() => {
+    cleanup()
+    vi.clearAllMocks()
+})
+
+// ==========================================
+// Global Mocks
+// ==========================================
+
+// Mock window.matchMedia
+Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: vi.fn().mockImplementation(query => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+    })),
+})
 
 // Mock localStorage
 const localStorageMock = {
-    getItem: vi.fn(() => null),
+    getItem: vi.fn((key) => {
+        return localStorageMock.__storage[key] || null
+    }),
+    setItem: vi.fn((key, value) => {
+        localStorageMock.__storage[key] = value
+    }),
+    removeItem: vi.fn((key) => {
+        delete localStorageMock.__storage[key]
+    }),
+    clear: vi.fn(() => {
+        localStorageMock.__storage = {}
+    }),
+    __storage: {}
+}
+Object.defineProperty(window, 'localStorage', {
+    value: localStorageMock
+})
+
+// Mock sessionStorage
+const sessionStorageMock = {
+    getItem: vi.fn(),
     setItem: vi.fn(),
     removeItem: vi.fn(),
     clear: vi.fn(),
-};
-global.localStorage = localStorageMock;
+}
+Object.defineProperty(window, 'sessionStorage', {
+    value: sessionStorageMock
+})
 
 // Mock fetch
-global.fetch = vi.fn();
+global.fetch = vi.fn(() =>
+    Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({}),
+        text: () => Promise.resolve(''),
+    })
+)
 
-// Mock Google OAuth
-Object.defineProperty(window, 'google', {
-    value: {
-        accounts: {
-            id: {
-                initialize: vi.fn(),
-                renderButton: vi.fn()
-            }
-        }
-    }
-});
+// Mock URL.createObjectURL
+global.URL.createObjectURL = vi.fn(() => 'mock-url')
+global.URL.revokeObjectURL = vi.fn()
 
-// WA¯NE: Mock ALL react-router-dom hooks globalnie
-const mockNavigate = vi.fn();
-const mockLocation = {
-    pathname: '/',
-    search: '',
-    hash: '',
-    state: null,
-    key: 'default'
-};
-const mockParams = {};
+// Mock console methods (optional - to reduce noise)
+global.console = {
+    ...console,
+    warn: vi.fn(),
+    error: vi.fn(),
+}
 
-vi.mock('react-router-dom', () => ({
-    useNavigate: () => mockNavigate,
-    useLocation: () => mockLocation,
-    useParams: () => mockParams,
-    useSearchParams: () => [new URLSearchParams(), vi.fn()],
-    Link: ({ children, to, ...props }) => {
-        return React.createElement('a', { href: to, ...props }, children);
-    },
-    BrowserRouter: ({ children }) => children,
-    MemoryRouter: ({ children }) => children,
-    Routes: ({ children }) => children,
-    Route: ({ element, children }) => element || children
-}));
+// Mock window methods
+window.alert = vi.fn()
+window.confirm = vi.fn()
+window.prompt = vi.fn()
 
-// Clear mocks
-beforeEach(() => {
-    vi.clearAllMocks();
-    mockNavigate.mockClear();
-});
+// Mock ResizeObserver
+global.ResizeObserver = vi.fn(() => ({
+    observe: vi.fn(),
+    unobserve: vi.fn(),
+    disconnect: vi.fn(),
+}))
+
+// Mock IntersectionObserver
+global.IntersectionObserver = vi.fn(() => ({
+    observe: vi.fn(),
+    unobserve: vi.fn(),
+    disconnect: vi.fn(),
+}))
