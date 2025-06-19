@@ -35,7 +35,7 @@ import {
 const OverviewTab = ({ stats, onTabChange }) => (
     <div className="space-y-4 md:space-y-6">
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
             <Card className="bg-gray-800 border-gray-700">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium text-gray-400">
@@ -66,7 +66,7 @@ const OverviewTab = ({ stats, onTabChange }) => (
                 </CardContent>
             </Card>
 
-            <Card className="bg-gray-800 border-gray-700 sm:col-span-2 lg:col-span-1">
+            <Card className="bg-gray-800 border-gray-700">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium text-gray-400">
                         Zarejestrowani użytkownicy
@@ -77,6 +77,21 @@ const OverviewTab = ({ stats, onTabChange }) => (
                     <div className="text-2xl font-bold text-white">{stats.totalUsers}</div>
                     <p className="text-xs text-gray-400">
                         +12% w tym miesiącu
+                    </p>
+                </CardContent>
+            </Card>
+
+            <Card className="bg-gray-800 border-gray-700">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium text-gray-400">
+                        Sprzęt w bazie
+                    </CardTitle>
+                    <Package className="h-4 w-4 text-purple-400" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold text-white">{stats.totalEquipment || 0}</div>
+                    <p className="text-xs text-gray-400">
+                        Różnych pozycji
                     </p>
                 </CardContent>
             </Card>
@@ -111,11 +126,10 @@ const OverviewTab = ({ stats, onTabChange }) => (
                     </Button>
                     <Button 
                         onClick={() => onTabChange('equipment')}
-                        variant="outline"
-                        className="h-16 md:h-20 flex flex-col items-center justify-center space-y-2 border-gray-600 text-sm md:text-base"
+                        className="h-16 md:h-20 flex flex-col items-center justify-center space-y-2 bg-green-600 hover:bg-green-700 text-white text-sm md:text-base"
                     >
                         <Package className="w-5 h-5 md:w-6 md:h-6" />
-                        <span className="text-center leading-tight">Dodaj sprzęt</span>
+                        <span className="text-center leading-tight">Zarządzaj sprzętem</span>
                     </Button>
                     <Button 
                         onClick={() => onTabChange('users')}
@@ -375,6 +389,713 @@ const UsersTab = () => {
     );
 };
 
+// NOWY KOMPONENT - Zarządzanie sprzętem
+const EquipmentTab = () => {
+    const [equipment, setEquipment] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [selectedCategory, setSelectedCategory] = useState('');
+    const [showAddModal, setShowAddModal] = useState(false);
+    const [editingEquipment, setEditingEquipment] = useState(null);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+
+    // Kategorie sprzętu
+    const categories = [
+        { value: '', label: 'Wszystkie kategorie' },
+        { value: 'drilling', label: 'Wiertarki' },
+        { value: 'cutting', label: 'Cięcie' },
+        { value: 'excavation', label: 'Kopanie' },
+        { value: 'concrete', label: 'Betonowanie' },
+        { value: 'lifting', label: 'Podnoszenie' },
+        { value: 'power_tools', label: 'Elektronarzędzia' },
+        { value: 'hand_tools', label: 'Narzędzia ręczne' },
+        { value: 'safety', label: 'Bezpieczeństwo' }
+    ];
+
+    useEffect(() => {
+        fetchEquipment();
+    }, [currentPage, searchTerm, selectedCategory]);
+
+    const fetchEquipment = async () => {
+        setLoading(true);
+        try {
+            const token = localStorage.getItem('access_token');
+            const params = new URLSearchParams({
+                page: currentPage,
+                size: 10,
+                ...(searchTerm && { search: searchTerm }),
+                ...(selectedCategory && { category: selectedCategory })
+            });
+
+            const response = await fetch(`http://localhost:8000/api/equipment?${params}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                setEquipment(data.items || []);
+                setTotalPages(data.pages || 1);
+            }
+        } catch (error) {
+            console.error('Błąd pobierania sprzętu:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleDeleteEquipment = async (equipmentId) => {
+        if (!confirm('Czy na pewno chcesz usunąć ten sprzęt?')) return;
+
+        try {
+            const token = localStorage.getItem('access_token');
+            const response = await fetch(`http://localhost:8000/api/equipment/${equipmentId}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (response.ok) {
+                alert('Sprzęt został usunięty!');
+                fetchEquipment();
+            }
+        } catch (error) {
+            alert('Błąd usuwania sprzętu');
+        }
+    };
+
+    const formatPrice = (price) => {
+        return price ? `${price} zł` : '-';
+    };
+
+    const getStatusBadge = (status) => {
+        const statusMap = {
+            'available': { label: 'Dostępny', color: 'bg-green-500/20 text-green-400' },
+            'rented': { label: 'Wypożyczony', color: 'bg-blue-500/20 text-blue-400' },
+            'maintenance': { label: 'Konserwacja', color: 'bg-yellow-500/20 text-yellow-400' },
+            'damaged': { label: 'Uszkodzony', color: 'bg-red-500/20 text-red-400' },
+            'retired': { label: 'Wycofany', color: 'bg-gray-500/20 text-gray-400' }
+        };
+        
+        const statusInfo = statusMap[status] || statusMap['available'];
+        return (
+            <span className={`px-2 py-1 rounded text-xs font-medium ${statusInfo.color}`}>
+                {statusInfo.label}
+            </span>
+        );
+    };
+
+    return (
+        <div className="space-y-4 md:space-y-6">
+            {/* Header z przyciskiem dodawania */}
+            <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
+                <div>
+                    <h3 className="text-lg md:text-xl font-semibold text-white">Zarządzanie sprzętem</h3>
+                    <p className="text-gray-400 text-sm">Dodawaj, edytuj i usuwaj sprzęt z wypożyczalni</p>
+                </div>
+                <Button
+                    onClick={() => {
+                        setEditingEquipment(null);
+                        setShowAddModal(true);
+                    }}
+                    className="bg-green-600 hover:bg-green-700 w-full sm:w-auto min-h-[44px]"
+                >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Dodaj nowy sprzęt
+                </Button>
+            </div>
+
+            {/* Filtry */}
+            <Card className="bg-gray-800 border-gray-700">
+                <CardContent className="pt-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="md:col-span-2">
+                            <Input
+                                type="text"
+                                placeholder="Szukaj sprzętu..."
+                                value={searchTerm}
+                                onChange={(e) => {
+                                    setSearchTerm(e.target.value);
+                                    setCurrentPage(1);
+                                }}
+                                className="bg-gray-700 border-gray-600 text-white min-h-[44px]"
+                            />
+                        </div>
+                        <div>
+                            <select
+                                value={selectedCategory}
+                                onChange={(e) => {
+                                    setSelectedCategory(e.target.value);
+                                    setCurrentPage(1);
+                                }}
+                                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white min-h-[44px]"
+                            >
+                                {categories.map(cat => (
+                                    <option key={cat.value} value={cat.value}>
+                                        {cat.label}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+
+            {/* Lista sprzętu */}
+            <Card className="bg-gray-800 border-gray-700">
+                <CardContent className="pt-6">
+                    {loading ? (
+                        <div className="text-center py-8">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
+                            <p className="text-gray-400">Ładowanie...</p>
+                        </div>
+                    ) : equipment.length === 0 ? (
+                        <div className="text-center py-8">
+                            <Package className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                            <p className="text-gray-400">Brak sprzętu do wyświetlenia</p>
+                        </div>
+                    ) : (
+                        <>
+                            {/* Desktop Table */}
+                            <div className="hidden md:block overflow-x-auto">
+                                <table className="w-full">
+                                    <thead>
+                                        <tr className="border-b border-gray-700">
+                                            <th className="text-left py-3 px-2 text-gray-400 font-medium">Nazwa</th>
+                                            <th className="text-left py-3 px-2 text-gray-400 font-medium">Kategoria</th>
+                                            <th className="text-left py-3 px-2 text-gray-400 font-medium">Cena/dzień</th>
+                                            <th className="text-left py-3 px-2 text-gray-400 font-medium">Dostępność</th>
+                                            <th className="text-left py-3 px-2 text-gray-400 font-medium">Status</th>
+                                            <th className="text-right py-3 px-2 text-gray-400 font-medium">Akcje</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {equipment.map((item) => (
+                                            <tr key={item.id} className="border-b border-gray-700/50 hover:bg-gray-700/30">
+                                                <td className="py-3 px-2">
+                                                    <div>
+                                                        <div className="font-medium text-white">{item.name}</div>
+                                                        <div className="text-sm text-gray-400">
+                                                            {item.brand} {item.model}
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="py-3 px-2">
+                                                    <span className="text-gray-300 capitalize">
+                                                        {categories.find(c => c.value === item.category)?.label || item.category}
+                                                    </span>
+                                                </td>
+                                                <td className="py-3 px-2 text-green-400 font-medium">
+                                                    {formatPrice(item.daily_rate)}
+                                                </td>
+                                                <td className="py-3 px-2">
+                                                    <div className="text-white text-sm">
+                                                        {item.quantity_available}/{item.quantity_total}
+                                                    </div>
+                                                </td>
+                                                <td className="py-3 px-2">
+                                                    {getStatusBadge(item.status)}
+                                                </td>
+                                                <td className="py-3 px-2">
+                                                    <div className="flex items-center justify-end space-x-2">
+                                                        <Button
+                                                            onClick={() => {
+                                                                setEditingEquipment(item);
+                                                                setShowAddModal(true);
+                                                            }}
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="border-gray-600 text-gray-300 min-h-[36px] min-w-[36px]"
+                                                        >
+                                                            <Edit className="w-4 h-4" />
+                                                        </Button>
+                                                        <Button
+                                                            onClick={() => handleDeleteEquipment(item.id)}
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="border-red-600 text-red-400 hover:bg-red-600/20 min-h-[36px] min-w-[36px]"
+                                                        >
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </Button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            {/* Mobile Cards */}
+                            <div className="md:hidden space-y-4">
+                                {equipment.map((item) => (
+                                    <div key={item.id} className="bg-gray-700 rounded-lg p-4">
+                                        <div className="flex justify-between items-start mb-3">
+                                            <div className="flex-1">
+                                                <h4 className="font-medium text-white">{item.name}</h4>
+                                                <p className="text-sm text-gray-400">{item.brand} {item.model}</p>
+                                            </div>
+                                            {getStatusBadge(item.status)}
+                                        </div>
+                                        
+                                        <div className="grid grid-cols-2 gap-3 text-sm mb-4">
+                                            <div>
+                                                <span className="text-gray-400">Kategoria:</span>
+                                                <p className="text-white capitalize">
+                                                    {categories.find(c => c.value === item.category)?.label || item.category}
+                                                </p>
+                                            </div>
+                                            <div>
+                                                <span className="text-gray-400">Cena/dzień:</span>
+                                                <p className="text-green-400 font-medium">{formatPrice(item.daily_rate)}</p>
+                                            </div>
+                                            <div>
+                                                <span className="text-gray-400">Dostępność:</span>
+                                                <p className="text-white">{item.quantity_available}/{item.quantity_total}</p>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex space-x-2">
+                                            <Button
+                                                onClick={() => {
+                                                    setEditingEquipment(item);
+                                                    setShowAddModal(true);
+                                                }}
+                                                variant="outline"
+                                                size="sm"
+                                                className="flex-1 border-gray-600 text-gray-300 min-h-[44px]"
+                                            >
+                                                <Edit className="w-4 h-4 mr-2" />
+                                                Edytuj
+                                            </Button>
+                                            <Button
+                                                onClick={() => handleDeleteEquipment(item.id)}
+                                                variant="outline"
+                                                size="sm"
+                                                className="flex-1 border-red-600 text-red-400 hover:bg-red-600/20 min-h-[44px]"
+                                            >
+                                                <Trash2 className="w-4 h-4 mr-2" />
+                                                Usuń
+                                            </Button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Paginacja */}
+                            {totalPages > 1 && (
+                                <div className="flex justify-center items-center space-x-4 mt-6">
+                                    <Button
+                                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                        disabled={currentPage === 1}
+                                        variant="outline"
+                                        className="border-gray-600 text-gray-300 min-h-[44px]"
+                                    >
+                                        Poprzednia
+                                    </Button>
+                                    <span className="text-gray-300">
+                                        Strona {currentPage} z {totalPages}
+                                    </span>
+                                    <Button
+                                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                        disabled={currentPage === totalPages}
+                                        variant="outline"
+                                        className="border-gray-600 text-gray-300 min-h-[44px]"
+                                    >
+                                        Następna
+                                    </Button>
+                                </div>
+                            )}
+                        </>
+                    )}
+                </CardContent>
+            </Card>
+
+            {/* Modal dodawania/edycji */}
+            {showAddModal && (
+                <EquipmentModal
+                    equipment={editingEquipment}
+                    onClose={() => {
+                        setShowAddModal(false);
+                        setEditingEquipment(null);
+                    }}
+                    onSuccess={() => {
+                        setShowAddModal(false);
+                        setEditingEquipment(null);
+                        fetchEquipment();
+                    }}
+                    categories={categories}
+                />
+            )}
+        </div>
+    );
+};
+
+// NOWY KOMPONENT - Modal do dodawania/edycji sprzętu
+const EquipmentModal = ({ equipment, onClose, onSuccess, categories }) => {
+    const [form, setForm] = useState({
+        name: '',
+        description: '',
+        category: '',
+        brand: '',
+        model: '',
+        daily_rate: '',
+        weekly_rate: '',
+        monthly_rate: '',
+        weight: '',
+        dimensions: '',
+        power_consumption: '',
+        quantity_total: 1,
+        requires_license: false,
+        min_age: 18
+    });
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+
+    useEffect(() => {
+        if (equipment) {
+            setForm({
+                name: equipment.name || '',
+                description: equipment.description || '',
+                category: equipment.category || '',
+                brand: equipment.brand || '',
+                model: equipment.model || '',
+                daily_rate: equipment.daily_rate || '',
+                weekly_rate: equipment.weekly_rate || '',
+                monthly_rate: equipment.monthly_rate || '',
+                weight: equipment.weight || '',
+                dimensions: equipment.dimensions || '',
+                power_consumption: equipment.power_consumption || '',
+                quantity_total: equipment.quantity_total || 1,
+                requires_license: equipment.requires_license || false,
+                min_age: equipment.min_age || 18
+            });
+        }
+    }, [equipment]);
+
+    const handleChange = (e) => {
+        const { name, value, type, checked } = e.target;
+        setForm(prev => ({
+            ...prev,
+            [name]: type === 'checkbox' ? checked : value
+        }));
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        setError('');
+
+        try {
+            const token = localStorage.getItem('access_token');
+            const url = equipment 
+                ? `http://localhost:8000/api/equipment/${equipment.id}`
+                : 'http://localhost:8000/api/equipment';
+            
+            const method = equipment ? 'PUT' : 'POST';
+
+            // Przygotowanie danych
+            const submitData = {
+                ...form,
+                daily_rate: parseFloat(form.daily_rate) || 0,
+                weekly_rate: form.weekly_rate ? parseFloat(form.weekly_rate) : null,
+                monthly_rate: form.monthly_rate ? parseFloat(form.monthly_rate) : null,
+                weight: form.weight ? parseFloat(form.weight) : null,
+                quantity_total: parseInt(form.quantity_total) || 1,
+                min_age: parseInt(form.min_age) || 18
+            };
+
+            const response = await fetch(url, {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(submitData)
+            });
+
+            if (response.ok) {
+                alert(`Sprzęt ${equipment ? 'zaktualizowany' : 'dodany'} pomyślnie!`);
+                onSuccess();
+            } else {
+                const errorData = await response.json();
+                setError(errorData.detail || 'Błąd podczas zapisywania');
+            }
+        } catch (error) {
+            setError('Błąd połączenia z serwerem');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-gray-800 rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                <div className="p-6">
+                    <div className="flex justify-between items-center mb-6">
+                        <h3 className="text-xl font-semibold text-white">
+                            {equipment ? 'Edytuj sprzęt' : 'Dodaj nowy sprzęt'}
+                        </h3>
+                        <Button
+                            onClick={onClose}
+                            variant="ghost"
+                            size="sm"
+                            className="text-gray-400 hover:text-white min-h-[44px] min-w-[44px]"
+                        >
+                            <X className="w-5 h-5" />
+                        </Button>
+                    </div>
+
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                        {/* Podstawowe informacje */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-2">
+                                    Nazwa sprzętu *
+                                </label>
+                                <Input
+                                    name="name"
+                                    value={form.name}
+                                    onChange={handleChange}
+                                    required
+                                    className="bg-gray-700 border-gray-600 text-white min-h-[44px]"
+                                    placeholder="np. Wiertarka udarowa"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-2">
+                                    Kategoria *
+                                </label>
+                                <select
+                                    name="category"
+                                    value={form.category}
+                                    onChange={handleChange}
+                                    required
+                                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white min-h-[44px]"
+                                >
+                                    <option value="">Wybierz kategorię</option>
+                                    {categories.slice(1).map(cat => (
+                                        <option key={cat.value} value={cat.value}>
+                                            {cat.label}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-2">
+                                    Marka
+                                </label>
+                                <Input
+                                    name="brand"
+                                    value={form.brand}
+                                    onChange={handleChange}
+                                    className="bg-gray-700 border-gray-600 text-white min-h-[44px]"
+                                    placeholder="np. Bosch"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-2">
+                                    Model
+                                </label>
+                                <Input
+                                    name="model"
+                                    value={form.model}
+                                    onChange={handleChange}
+                                    className="bg-gray-700 border-gray-600 text-white min-h-[44px]"
+                                    placeholder="np. GSB 13 RE"
+                                />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-300 mb-2">
+                                Opis
+                            </label>
+                            <textarea
+                                name="description"
+                                value={form.description}
+                                onChange={handleChange}
+                                rows="3"
+                                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400"
+                                placeholder="Opis sprzętu..."
+                            />
+                        </div>
+
+                        {/* Ceny */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-2">
+                                    Cena dzienna (zł) *
+                                </label>
+                                <Input
+                                    name="daily_rate"
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    value={form.daily_rate}
+                                    onChange={handleChange}
+                                    required
+                                    className="bg-gray-700 border-gray-600 text-white min-h-[44px]"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-2">
+                                    Cena tygodniowa (zł)
+                                </label>
+                                <Input
+                                    name="weekly_rate"
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    value={form.weekly_rate}
+                                    onChange={handleChange}
+                                    className="bg-gray-700 border-gray-600 text-white min-h-[44px]"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-2">
+                                    Cena miesięczna (zł)
+                                </label>
+                                <Input
+                                    name="monthly_rate"
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    value={form.monthly_rate}
+                                    onChange={handleChange}
+                                    className="bg-gray-700 border-gray-600 text-white min-h-[44px]"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Szczegóły techniczne */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-2">
+                                    Waga (kg)
+                                </label>
+                                <Input
+                                    name="weight"
+                                    type="number"
+                                    step="0.1"
+                                    min="0"
+                                    value={form.weight}
+                                    onChange={handleChange}
+                                    className="bg-gray-700 border-gray-600 text-white min-h-[44px]"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-2">
+                                    Wymiary
+                                </label>
+                                <Input
+                                    name="dimensions"
+                                    value={form.dimensions}
+                                    onChange={handleChange}
+                                    className="bg-gray-700 border-gray-600 text-white min-h-[44px]"
+                                    placeholder="np. 300x200x150mm"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-2">
+                                    Pobór mocy
+                                </label>
+                                <Input
+                                    name="power_consumption"
+                                    value={form.power_consumption}
+                                    onChange={handleChange}
+                                    className="bg-gray-700 border-gray-600 text-white min-h-[44px]"
+                                    placeholder="np. 1200W"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Ilość i wymagania */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-2">
+                                    Ilość sztuk *
+                                </label>
+                                <Input
+                                    name="quantity_total"
+                                    type="number"
+                                    min="1"
+                                    value={form.quantity_total}
+                                    onChange={handleChange}
+                                    required
+                                    className="bg-gray-700 border-gray-600 text-white min-h-[44px]"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-2">
+                                    Minimalny wiek
+                                </label>
+                                <Input
+                                    name="min_age"
+                                    type="number"
+                                    min="16"
+                                    max="99"
+                                    value={form.min_age}
+                                    onChange={handleChange}
+                                    className="bg-gray-700 border-gray-600 text-white min-h-[44px]"
+                                />
+                            </div>
+                            <div className="flex items-center mt-8">
+                                <input
+                                    name="requires_license"
+                                    type="checkbox"
+                                    checked={form.requires_license}
+                                    onChange={handleChange}
+                                    className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded"
+                                />
+                                <label className="ml-2 text-sm text-gray-300">
+                                    Wymaga uprawnień
+                                </label>
+                            </div>
+                        </div>
+
+                        {/* Error */}
+                        {error && (
+                            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
+                                <p className="text-red-400 text-sm">{error}</p>
+                            </div>
+                        )}
+
+                        {/* Buttons */}
+                        <div className="flex flex-col sm:flex-row gap-3 pt-4">
+                            <Button
+                                type="button"
+                                onClick={onClose}
+                                variant="outline"
+                                className="flex-1 border-gray-600 text-gray-300 min-h-[44px]"
+                            >
+                                Anuluj
+                            </Button>
+                            <Button
+                                type="submit"
+                                disabled={loading}
+                                className="flex-1 bg-blue-600 hover:bg-blue-700 min-h-[44px]"
+                            >
+                                {loading ? (
+                                    <>
+                                        <Clock className="w-4 h-4 mr-2 animate-spin" />
+                                        {equipment ? 'Aktualizuję...' : 'Dodaję...'}
+                                    </>
+                                ) : (
+                                    <>
+                                        {equipment ? 'Zaktualizuj' : 'Dodaj sprzęt'}
+                                    </>
+                                )}
+                            </Button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 // Główny komponent AdminDashboard
 const AdminDashboard = () => {
     const { user, logout } = useAuth();
@@ -388,7 +1109,7 @@ const AdminDashboard = () => {
         totalUsers: 0,
         pendingPayments: 0,
         monthlyRevenue: 0,
-        availableEquipment: 0
+        totalEquipment: 0
     });
     const [loading, setLoading] = useState(true);
 
@@ -429,7 +1150,7 @@ const AdminDashboard = () => {
         try {
             const token = localStorage.getItem('access_token');
             
-            const [rentalsRes, usersRes, paymentsRes] = await Promise.all([
+            const [rentalsRes, usersRes, paymentsRes, equipmentRes] = await Promise.all([
                 fetch('http://localhost:8000/api/admin/rentals?page=1&size=100', {
                     headers: { 'Authorization': `Bearer ${token}` }
                 }),
@@ -438,13 +1159,17 @@ const AdminDashboard = () => {
                 }),
                 fetch('http://localhost:8000/api/payments?page=1&size=100', {
                     headers: { 'Authorization': `Bearer ${token}` }
+                }),
+                fetch('http://localhost:8000/api/equipment?page=1&size=1', {
+                    headers: { 'Authorization': `Bearer ${token}` }
                 })
             ]);
 
-            if (rentalsRes.ok && usersRes.ok && paymentsRes.ok) {
+            if (rentalsRes.ok && usersRes.ok && paymentsRes.ok && equipmentRes.ok) {
                 const rentalsData = await rentalsRes.json();
                 const usersData = await usersRes.json();
                 const paymentsData = await paymentsRes.json();
+                const equipmentData = await equipmentRes.json();
 
                 setStats({
                     totalRentals: rentalsData.total || 0,
@@ -452,7 +1177,7 @@ const AdminDashboard = () => {
                     totalUsers: usersData.total || 0,
                     pendingPayments: paymentsData.items?.filter(p => p.status === 'pending').length || 0,
                     monthlyRevenue: 12500,
-                    availableEquipment: 45
+                    totalEquipment: equipmentData.total || 0
                 });
             }
         } catch (error) {
@@ -635,7 +1360,8 @@ const AdminDashboard = () => {
                     )}
                     {activeTab === 'payments' && <PaymentsTab onStatsRefresh={fetchDashboardStats} />}
                     {activeTab === 'users' && <UsersTab />}
-                    {['rentals', 'equipment', 'reports'].includes(activeTab) && (
+                    {activeTab === 'equipment' && <EquipmentTab />}
+                    {['rentals', 'reports'].includes(activeTab) && (
                         <Card className="bg-gray-800 border-gray-700">
                             <CardContent className="p-8 md:p-12 text-center">
                                 <div className="text-4xl md:text-6xl mb-4">🚧</div>
