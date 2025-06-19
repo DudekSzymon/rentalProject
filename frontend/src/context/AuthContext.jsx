@@ -30,6 +30,7 @@ export const AuthProvider = ({ children }) => {
 
                 if (response.ok) {
                     const userData = await response.json();
+                    localStorage.setItem('user', JSON.stringify(userData));
                     setUser({
                         ...userData,
                         isAdmin: userData.role === 'admin'
@@ -66,6 +67,8 @@ export const AuthProvider = ({ children }) => {
             
             if (data.access_token) {
                 localStorage.setItem('access_token', data.access_token);
+
+                localStorage.setItem('user', JSON.stringify(data.user));
                 setUser({
                     ...data.user,
                     isAdmin: data.user.role === 'admin'
@@ -95,6 +98,7 @@ export const AuthProvider = ({ children }) => {
             
             if (data.access_token) {
                 localStorage.setItem('access_token', data.access_token);
+                localStorage.setItem('user', JSON.stringify(data.user));
                 setUser({
                     ...data.user,
                     isAdmin: data.user.role === 'admin'

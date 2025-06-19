@@ -65,7 +65,7 @@ export default function Landing() {
                                     Moje wypożyczenia
                                 </button>
                             )}
-                            {user?.isAdmin && (
+                            {user?.role ==='admin' && (
                                 <button 
                                     onClick={() => navigate("/admin")}
                                     className="text-yellow-400 hover:text-yellow-300 transition-colors font-medium"
@@ -150,7 +150,7 @@ export default function Landing() {
                                         Moje wypożyczenia
                                     </button>
                                 )}
-                                {user?.isAdmin && (
+                                {user?.role ==='admin' && (
                                     <button 
                                         onClick={() => navigate("/admin")}
                                         className="text-yellow-400 hover:text-yellow-300 transition-colors font-medium px-2 text-left"

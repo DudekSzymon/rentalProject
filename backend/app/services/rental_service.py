@@ -178,16 +178,6 @@ class RentalService:
                 detail="Konto użytkownika zostało zablokowane"
             )
         
-        # CAŁKOWICIE USUNIĘTE - sprawdzanie weryfikacji
-        # Każdy zalogowany użytkownik może wypożyczać
-        
-        # Sprawdź czy sprzęt wymaga licencji  
-        if equipment.requires_license:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Ten sprzęt wymaga odpowiednich uprawnień/licencji"
-            )
-        
         # Sprawdź limity wypożyczeń użytkownika
         active_rentals = self.db.query(Rental).filter(
             and_(

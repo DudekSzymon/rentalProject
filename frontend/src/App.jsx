@@ -8,6 +8,7 @@ import Equipment from './pages/Equipment/Equipment';
 import RentalForm from './pages/Rental/RentalForm';
 import PaymentPage from './pages/Payment/PaymentPage';
 import MyRentals from './pages/MyRentals/MyRentals';
+import AdminDashboard from './pages/admin/AdminDashboard';
 
 import './index.css';
 
@@ -22,6 +23,7 @@ export default function App() {
                 <Route path="/rent/:equipmentId" element={<RentalForm />} />
                 <Route path="/payment" element={<PaymentPage />} />
                 <Route path="/my-rentals" element={<MyRentals />} />
+                <Route path="/admin" element={<AdminDashboard />} />
                 
                 {/* Stara testowa strona płatności - można usunąć */}
                 <Route path="/payments-test" element={<Payments />} />
