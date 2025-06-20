@@ -11,7 +11,9 @@ import {
     MapPin, 
     AlertCircle,
     CheckCircle,
-    Clock
+    Clock,
+    Hammer,
+    Package
 } from 'lucide-react';
 
 const RentalForm = () => {
@@ -67,67 +69,67 @@ const RentalForm = () => {
     };
 
     const checkAvailabilityAndPricing = async () => {
-    try {
-        // ZMIANA: Dodaj czas do dat
-        const startDateTime = new Date(startDate + 'T12:00:00').toISOString(); // Południe
-        const endDateTime = new Date(endDate + 'T12:00:00').toISOString();  
-        
-        const token = localStorage.getItem('access_token'); // <- DODANE
+        try {
+            // ZMIANA: Dodaj czas do dat
+            const startDateTime = new Date(startDate + 'T12:00:00').toISOString(); // Południe
+            const endDateTime = new Date(endDate + 'T12:00:00').toISOString();  
+            
+            const token = localStorage.getItem('access_token'); // <- DODANE
 
-        // Sprawdź dostępność
-        const availabilityParams = new URLSearchParams({
-            equipment_id: equipment.id,
-            start_date: startDateTime,  // <- ZMIENIONE
-            end_date: endDateTime,      // <- ZMIENIONE
-            quantity: quantity
-        });
+            // Sprawdź dostępność
+            const availabilityParams = new URLSearchParams({
+                equipment_id: equipment.id,
+                start_date: startDateTime,  // <- ZMIENIONE
+                end_date: endDateTime,      // <- ZMIENIONE
+                quantity: quantity
+            });
 
-        const availabilityResponse = await fetch(
-            `http://localhost:8000/api/rentals/check-availability?${availabilityParams}`,
-            { 
-                method: 'GET',
-                headers: {                           // <- DODANE
-                    ...(token && { 'Authorization': `Bearer ${token}` })
+            const availabilityResponse = await fetch(
+                `http://localhost:8000/api/rentals/check-availability?${availabilityParams}`,
+                { 
+                    method: 'GET',
+                    headers: {                           // <- DODANE
+                        ...(token && { 'Authorization': `Bearer ${token}` })
+                    }
                 }
-            }
-        );
-        
-        if (availabilityResponse.ok) {
-            const availabilityData = await availabilityResponse.json();
-            setAvailability(availabilityData);
+            );
+            
+            if (availabilityResponse.ok) {
+                const availabilityData = await availabilityResponse.json();
+                setAvailability(availabilityData);
 
-            // Jeśli dostępne, sprawdź cenę
-            if (availabilityData.available) {
-                const pricingParams = new URLSearchParams({
-                    equipment_id: equipment.id,
-                    start_date: startDateTime,    // <- ZMIENIONE (było startDate)
-                    end_date: endDateTime,        // <- ZMIENIONE (było endDate)
-                    quantity: quantity,
-                    rental_period: rentalPeriod
-                });
+                // Jeśli dostępne, sprawdź cenę
+                if (availabilityData.available) {
+                    const pricingParams = new URLSearchParams({
+                        equipment_id: equipment.id,
+                        start_date: startDateTime,    // <- ZMIENIONE (było startDate)
+                        end_date: endDateTime,        // <- ZMIENIONE (było endDate)
+                        quantity: quantity,
+                        rental_period: rentalPeriod
+                    });
 
-                const pricingResponse = await fetch(
-                    `http://localhost:8000/api/rentals/pricing-preview?${pricingParams}`,
-                    { 
-                        method: 'GET',
-                        headers: {                   // <- DODANE
-                            ...(token && { 'Authorization': `Bearer ${token}` })
+                    const pricingResponse = await fetch(
+                        `http://localhost:8000/api/rentals/pricing-preview?${pricingParams}`,
+                        { 
+                            method: 'GET',
+                            headers: {                   // <- DODANE
+                                ...(token && { 'Authorization': `Bearer ${token}` })
+                            }
+                        }
+                    );
+
+                    if (pricingResponse.ok) {
+                        const pricingData = await pricingResponse.json();
+                        if (pricingData.success) {
+                            setPricing(pricingData.pricing);
                         }
                     }
-                );
-
-                if (pricingResponse.ok) {
-                    const pricingData = await pricingResponse.json();
-                    if (pricingData.success) {
-                        setPricing(pricingData.pricing);
-                    }
                 }
             }
+        } catch (err) {
+            console.error('Błąd sprawdzania dostępności:', err);
         }
-    } catch (err) {
-        console.error('Błąd sprawdzania dostępności:', err);
-    }
-};
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -186,150 +188,210 @@ const RentalForm = () => {
 
     if (!equipment) {
         return (
-            <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-                <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-                    <p className="text-white">Ładowanie...</p>
+            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden">
+                {/* Animated Background Elements */}
+                <div className="absolute inset-0">
+                    <div className="absolute top-20 left-20 w-72 h-72 bg-purple-500/20 rounded-full blur-3xl animate-pulse"></div>
+                    <div className="absolute bottom-20 right-20 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
+                </div>
+
+                <div className="relative z-10 min-h-screen flex items-center justify-center">
+                    <div className="text-center">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+                        <p className="text-white text-lg">Ładowanie...</p>
+                    </div>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-gray-900">
-            {/* Header */}
-            <div className="bg-gray-800 border-b border-gray-700">
-                <div className="max-w-4xl mx-auto px-4 py-6">
-                    <div className="flex items-center space-x-4">
+        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden">
+            {/* Animated Background Elements */}
+            <div className="absolute inset-0">
+                <div className="absolute top-20 left-20 w-72 h-72 bg-purple-500/20 rounded-full blur-3xl animate-pulse"></div>
+                <div className="absolute bottom-20 right-20 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
+                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-indigo-500/20 rounded-full blur-3xl animate-pulse delay-500"></div>
+            </div>
+
+            {/* Pattern Overlay */}
+            <div 
+                className="absolute inset-0"
+                style={{
+                    backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Ccircle cx='30' cy='30' r='1'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+                    opacity: 0.3
+                }}
+            ></div>
+
+            {/* Navigation */}
+            <nav className="bg-gray-900/95 backdrop-blur-sm border-b border-gray-800 sticky top-0 z-50">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="flex justify-between items-center h-16">
+                        <div className="flex items-center space-x-3">
+                            <div className="p-2 bg-white/20 backdrop-blur-sm rounded-lg">
+                                <Hammer className="w-6 h-6 text-white" />
+                            </div>
+                            <h1 className="text-xl font-bold text-white">SpellBudex</h1>
+                        </div>
                         <Button
                             onClick={() => navigate('/equipment')}
                             variant="outline"
                             size="sm"
-                            className="border-gray-600 text-gray-300 hover:bg-white/10"
+                            className="border-white/30 text-white hover:bg-white/20"
                         >
                             <ArrowLeft className="w-4 h-4 mr-2" />
                             Powrót do katalogu
                         </Button>
-                        <div>
-                            <h1 className="text-2xl font-bold text-white">Wypożyczenie sprzętu</h1>
-                            <p className="text-gray-400">Wypełnij formularz aby zarezerwować sprzęt</p>
-                        </div>
                     </div>
                 </div>
+            </nav>
+
+            {/* Header */}
+            <div className="relative z-10 text-center px-4 py-12">
+                <h1 className="text-4xl sm:text-5xl font-bold text-white mb-4">
+                    Wypożyczenie
+                    <span className="bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent block">
+                        sprzętu
+                    </span>
+                </h1>
+                <p className="text-gray-300 text-lg">Wypełnij formularz aby zarezerwować sprzęt</p>
             </div>
 
-            <div className="max-w-4xl mx-auto px-4 py-8">
+            <div className="relative z-10 max-w-6xl mx-auto px-4 pb-12">
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     {/* Formularz */}
                     <div className="lg:col-span-2">
-                        <Card className="bg-gray-800 border-gray-700">
+                        <Card className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl">
                             <CardHeader>
-                                <CardTitle className="text-white">Szczegóły wypożyczenia</CardTitle>
+                                <CardTitle className="text-white text-xl flex items-center">
+                                    <Calendar className="w-5 h-5 mr-2" />
+                                    Szczegóły wypożyczenia
+                                </CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <form onSubmit={handleSubmit} className="space-y-6">
+                                <form onSubmit={handleSubmit} className="space-y-8">
                                     {/* Daty */}
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-300 mb-2">
-                                                Data rozpoczęcia *
-                                            </label>
-                                            <Input
-                                                type="date"
-                                                value={startDate}
-                                                onChange={(e) => setStartDate(e.target.value)}
-                                                min={today}
-                                                required
-                                                className="bg-gray-700 border-gray-600"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-300 mb-2">
-                                                Data zakończenia *
-                                            </label>
-                                            <Input
-                                                type="date"
-                                                value={endDate}
-                                                onChange={(e) => setEndDate(e.target.value)}
-                                                min={startDate || today}
-                                                required
-                                                className="bg-gray-700 border-gray-600"
-                                            />
+                                    <div>
+                                        <h3 className="text-white font-semibold mb-4 flex items-center">
+                                            <Calendar className="w-4 h-4 mr-2" />
+                                            Okres wypożyczenia
+                                        </h3>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-300 mb-2">
+                                                    Data rozpoczęcia *
+                                                </label>
+                                                <Input
+                                                    type="date"
+                                                    value={startDate}
+                                                    onChange={(e) => setStartDate(e.target.value)}
+                                                    min={today}
+                                                    required
+                                                    className="bg-white/10 backdrop-blur-sm border border-white/20 text-white rounded-xl focus:ring-2 focus:ring-purple-500"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-300 mb-2">
+                                                    Data zakończenia *
+                                                </label>
+                                                <Input
+                                                    type="date"
+                                                    value={endDate}
+                                                    onChange={(e) => setEndDate(e.target.value)}
+                                                    min={startDate || today}
+                                                    required
+                                                    className="bg-white/10 backdrop-blur-sm border border-white/20 text-white rounded-xl focus:ring-2 focus:ring-purple-500"
+                                                />
+                                            </div>
                                         </div>
                                     </div>
 
                                     {/* Ilość i okres rozliczeniowy */}
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-300 mb-2">
-                                                Ilość
-                                            </label>
-                                            <Input
-                                                type="number"
-                                                value={quantity}
-                                                onChange={(e) => setQuantity(parseInt(e.target.value))}
-                                                min="1"
-                                                max={equipment.quantity_available}
-                                                required
-                                                className="bg-gray-700 border-gray-600"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-300 mb-2">
-                                                Okres rozliczeniowy
-                                            </label>
-                                            <select
-                                                value={rentalPeriod}
-                                                onChange={(e) => setRentalPeriod(e.target.value)}
-                                                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white"
-                                            >
-                                                <option value="daily">Dzienny</option>
-                                                <option value="weekly">Tygodniowy</option>
-                                                <option value="monthly">Miesięczny</option>
-                                            </select>
+                                    <div>
+                                        <h3 className="text-white font-semibold mb-4 flex items-center">
+                                            <Package className="w-4 h-4 mr-2" />
+                                            Parametry wypożyczenia
+                                        </h3>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-300 mb-2">
+                                                    Ilość
+                                                </label>
+                                                <Input
+                                                    type="number"
+                                                    value={quantity}
+                                                    onChange={(e) => setQuantity(parseInt(e.target.value))}
+                                                    min="1"
+                                                    max={equipment.quantity_available}
+                                                    required
+                                                    className="bg-white/10 backdrop-blur-sm border border-white/20 text-white rounded-xl focus:ring-2 focus:ring-purple-500"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-300 mb-2">
+                                                    Okres rozliczeniowy
+                                                </label>
+                                                <select
+                                                    value={rentalPeriod}
+                                                    onChange={(e) => setRentalPeriod(e.target.value)}
+                                                    className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white focus:ring-2 focus:ring-purple-500"
+                                                >
+                                                    <option value="daily" className="bg-gray-800">Dzienny</option>
+                                                    <option value="weekly" className="bg-gray-800">Tygodniowy</option>
+                                                    <option value="monthly" className="bg-gray-800">Miesięczny</option>
+                                                </select>
+                                            </div>
                                         </div>
                                     </div>
 
                                     {/* Adresy */}
-                                    <div className="space-y-4">
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-300 mb-2">
-                                                Adres odbioru
-                                            </label>
-                                            <Input
-                                                type="text"
-                                                value={pickupAddress}
-                                                onChange={(e) => setPickupAddress(e.target.value)}
-                                                placeholder="Adres gdzie odbierzesz sprzęt"
-                                                className="bg-gray-700 border-gray-600"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-300 mb-2">
-                                                Adres zwrotu
-                                            </label>
-                                            <Input
-                                                type="text"
-                                                value={returnAddress}
-                                                onChange={(e) => setReturnAddress(e.target.value)}
-                                                placeholder="Adres gdzie zwrócisz sprzęt"
-                                                className="bg-gray-700 border-gray-600"
-                                            />
+                                    <div>
+                                        <h3 className="text-white font-semibold mb-4 flex items-center">
+                                            <MapPin className="w-4 h-4 mr-2" />
+                                            Lokalizacja
+                                        </h3>
+                                        <div className="space-y-4">
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-300 mb-2">
+                                                    Adres odbioru
+                                                </label>
+                                                <Input
+                                                    type="text"
+                                                    value={pickupAddress}
+                                                    onChange={(e) => setPickupAddress(e.target.value)}
+                                                    placeholder="Adres gdzie odbierzesz sprzęt"
+                                                    className="bg-white/10 backdrop-blur-sm border border-white/20 text-white placeholder-gray-400 rounded-xl focus:ring-2 focus:ring-purple-500"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-300 mb-2">
+                                                    Adres zwrotu
+                                                </label>
+                                                <Input
+                                                    type="text"
+                                                    value={returnAddress}
+                                                    onChange={(e) => setReturnAddress(e.target.value)}
+                                                    placeholder="Adres gdzie zwrócisz sprzęt"
+                                                    className="bg-white/10 backdrop-blur-sm border border-white/20 text-white placeholder-gray-400 rounded-xl focus:ring-2 focus:ring-purple-500"
+                                                />
+                                            </div>
                                         </div>
                                     </div>
 
                                     {/* Dostawa */}
-                                    <div className="flex items-center space-x-3">
-                                        <input
-                                            type="checkbox"
-                                            id="delivery"
-                                            checked={deliveryRequired}
-                                            onChange={(e) => setDeliveryRequired(e.target.checked)}
-                                            className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded"
-                                        />
-                                        <label htmlFor="delivery" className="text-gray-300">
-                                            Potrzebuję dostawy na miejsce
-                                        </label>
+                                    <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+                                        <div className="flex items-center space-x-3">
+                                            <input
+                                                type="checkbox"
+                                                id="delivery"
+                                                checked={deliveryRequired}
+                                                onChange={(e) => setDeliveryRequired(e.target.checked)}
+                                                className="w-4 h-4 text-purple-600 bg-white/10 border-white/20 rounded focus:ring-purple-500"
+                                            />
+                                            <label htmlFor="delivery" className="text-gray-300 font-medium">
+                                                🚚 Potrzebuję dostawy na miejsce
+                                            </label>
+                                        </div>
                                     </div>
 
                                     {/* Notatki */}
@@ -341,17 +403,17 @@ const RentalForm = () => {
                                             value={notes}
                                             onChange={(e) => setNotes(e.target.value)}
                                             rows="3"
-                                            placeholder="Dodatkowe informacje..."
-                                            className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400"
+                                            placeholder="Dodatkowe informacje, uwagi specjalne..."
+                                            className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-gray-400 focus:ring-2 focus:ring-purple-500"
                                         />
                                     </div>
 
                                     {/* Error */}
                                     {error && (
-                                        <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
+                                        <div className="bg-red-500/20 backdrop-blur-sm border border-red-500/30 rounded-xl p-4">
                                             <div className="flex items-center space-x-2">
                                                 <AlertCircle className="w-5 h-5 text-red-400" />
-                                                <p className="text-red-400">{error}</p>
+                                                <p className="text-red-300">{error}</p>
                                             </div>
                                         </div>
                                     )}
@@ -360,16 +422,16 @@ const RentalForm = () => {
                                     <Button 
                                         type="submit" 
                                         disabled={loading || !isValidDateRange || !availability?.available}
-                                        className="w-full"
+                                        className="w-full h-12 text-lg font-semibold bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 disabled:from-gray-500 disabled:to-gray-600 rounded-xl"
                                     >
                                         {loading ? (
                                             <>
-                                                <Clock className="w-4 h-4 mr-2 animate-spin" />
+                                                <Clock className="w-5 h-5 mr-2 animate-spin" />
                                                 Tworzenie wypożyczenia...
                                             </>
                                         ) : (
                                             <>
-                                                <Calendar className="w-4 h-4 mr-2" />
+                                                <Calendar className="w-5 h-5 mr-2" />
                                                 Przejdź do płatności
                                             </>
                                         )}
@@ -382,19 +444,36 @@ const RentalForm = () => {
                     {/* Sidebar - Podsumowanie */}
                     <div className="space-y-6">
                         {/* Informacje o sprzęcie */}
-                        <Card className="bg-gray-800 border-gray-700">
+                        <Card className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl">
                             <CardHeader>
-                                <CardTitle className="text-white text-lg">{equipment.name}</CardTitle>
+                                <CardTitle className="text-white text-lg flex items-center">
+                                    <Package className="w-5 h-5 mr-2" />
+                                    {equipment.name}
+                                </CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <div className="space-y-3 text-sm text-gray-300">
-                                    <p><strong>Marka:</strong> {equipment.brand} {equipment.model}</p>
-                                    <p><strong>Kategoria:</strong> {equipment.category}</p>
-                                    <p><strong>Dostępność:</strong> {equipment.quantity_available}/{equipment.quantity_total}</p>
-                                    <div className="pt-2 border-t border-gray-600">
-                                        <p className="text-green-400 font-semibold">
-                                            {equipment.daily_rate} zł za dzień
-                                        </p>
+                                <div className="space-y-4">
+                                    <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+                                        <div className="space-y-3 text-sm">
+                                            <div className="flex justify-between">
+                                                <span className="text-gray-300">Marka:</span>
+                                                <span className="text-white font-medium">{equipment.brand} {equipment.model}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span className="text-gray-300">Kategoria:</span>
+                                                <span className="text-white">{equipment.category}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span className="text-gray-300">Dostępność:</span>
+                                                <span className="text-white">{equipment.quantity_available}/{equipment.quantity_total}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="text-center">
+                                        <div className="text-2xl font-bold bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">
+                                            {equipment.daily_rate} zł
+                                        </div>
+                                        <div className="text-gray-300 text-sm">za dzień</div>
                                     </div>
                                 </div>
                             </CardContent>
@@ -402,22 +481,31 @@ const RentalForm = () => {
 
                         {/* Status dostępności */}
                         {availability && (
-                            <Card className="bg-gray-800 border-gray-700">
+                            <Card className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl">
                                 <CardContent className="pt-6">
-                                    <div className={`flex items-center space-x-2 ${
-                                        availability.available ? 'text-green-400' : 'text-red-400'
+                                    <div className={`flex items-center justify-center space-x-3 p-4 rounded-xl ${
+                                        availability.available 
+                                            ? 'bg-green-500/20 border border-green-500/30' 
+                                            : 'bg-red-500/20 border border-red-500/30'
                                     }`}>
                                         {availability.available ? (
-                                            <CheckCircle className="w-5 h-5" />
+                                            <CheckCircle className="w-6 h-6 text-green-400" />
                                         ) : (
-                                            <AlertCircle className="w-5 h-5" />
+                                            <AlertCircle className="w-6 h-6 text-red-400" />
                                         )}
-                                        <span className="font-medium">
-                                            {availability.available ? 'Dostępne w wybranym terminie' : 'Niedostępne'}
-                                        </span>
+                                        <div className="text-center">
+                                            <div className={`font-semibold ${
+                                                availability.available ? 'text-green-300' : 'text-red-300'
+                                            }`}>
+                                                {availability.available ? '✅ Dostępne' : '❌ Niedostępne'}
+                                            </div>
+                                            <div className="text-sm text-gray-300">
+                                                {availability.available ? 'w wybranym terminie' : 'w tym okresie'}
+                                            </div>
+                                        </div>
                                     </div>
                                     {!availability.available && availability.error && (
-                                        <p className="text-red-400 text-sm mt-2">{availability.error}</p>
+                                        <p className="text-red-300 text-sm mt-3 text-center">{availability.error}</p>
                                     )}
                                 </CardContent>
                             </Card>
@@ -425,36 +513,43 @@ const RentalForm = () => {
 
                         {/* Cennik */}
                         {pricing && (
-                            <Card className="bg-gray-800 border-gray-700">
+                            <Card className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl">
                                 <CardHeader>
-                                    <CardTitle className="text-white text-lg">Podsumowanie kosztów</CardTitle>
+                                    <CardTitle className="text-white text-lg flex items-center">
+                                        <Euro className="w-5 h-5 mr-2" />
+                                        Podsumowanie kosztów
+                                    </CardTitle>
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="space-y-2 text-sm">
-                                        <div className="flex justify-between text-gray-300">
-                                            <span>Cena jednostkowa:</span>
-                                            <span>{pricing.unit_price} zł</span>
-                                        </div>
-                                        <div className="flex justify-between text-gray-300">
-                                            <span>Jednostki rozliczeniowe:</span>
-                                            <span>{pricing.billable_units}</span>
-                                        </div>
-                                        <div className="flex justify-between text-gray-300">
-                                            <span>Ilość:</span>
-                                            <span>{pricing.quantity}</span>
-                                        </div>
-                                        <div className="border-t border-gray-600 pt-2">
-                                            <div className="flex justify-between text-white font-semibold">
-                                                <span>Łącznie:</span>
-                                                <span>{pricing.total_price} zł</span>
+                                    <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+                                        <div className="space-y-3 text-sm">
+                                            <div className="flex justify-between text-gray-300">
+                                                <span>Cena jednostkowa:</span>
+                                                <span className="text-white">{pricing.unit_price} zł</span>
                                             </div>
-                                            <div className="flex justify-between text-yellow-400 text-sm">
-                                                <span>Kaucja:</span>
-                                                <span>{pricing.deposit_amount} zł</span>
+                                            <div className="flex justify-between text-gray-300">
+                                                <span>Jednostki rozliczeniowe:</span>
+                                                <span className="text-white">{pricing.billable_units}</span>
                                             </div>
-                                        </div>
-                                        <div className="text-xs text-gray-400 pt-2">
-                                            Czas wypożyczenia: {pricing.duration_days} dni
+                                            <div className="flex justify-between text-gray-300">
+                                                <span>Ilość:</span>
+                                                <span className="text-white">{pricing.quantity}</span>
+                                            </div>
+                                            <div className="border-t border-white/20 pt-3">
+                                                <div className="flex justify-between items-center mb-2">
+                                                    <span className="text-white font-semibold">Łącznie:</span>
+                                                    <span className="text-2xl font-bold bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">
+                                                        {pricing.total_price} zł
+                                                    </span>
+                                                </div>
+                                                <div className="flex justify-between text-yellow-400 text-sm">
+                                                    <span>Kaucja:</span>
+                                                    <span>{pricing.deposit_amount} zł</span>
+                                                </div>
+                                            </div>
+                                            <div className="text-center text-xs text-gray-400 pt-2 border-t border-white/10">
+                                                ⏰ Czas wypożyczenia: {pricing.duration_days} dni
+                                            </div>
                                         </div>
                                     </div>
                                 </CardContent>
