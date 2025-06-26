@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+import { equipmentAPI } from '../../utils/api';
 import { 
     Search, 
     Filter, 
@@ -47,25 +48,21 @@ const Equipment = () => {
     const fetchEquipment = async () => {
         setLoading(true);
         try {
-            const params = new URLSearchParams({
+            const params = {
                 page: currentPage,
                 size: 12,
                 available_only: true,
                 ...(searchTerm && { search: searchTerm }),
                 ...(selectedCategory && { category: selectedCategory })
-            });
+            };
 
-            const response = await fetch(`http://localhost:8000/api/equipment?${params}`);
+            const response = await equipmentAPI.getAll(params);
+            const data = response.data;
             
-            if (!response.ok) {
-                throw new Error('Błąd pobierania sprzętu');
-            }
-
-            const data = await response.json();
-            setEquipment(data.items);
-            setTotalPages(data.pages);
+            setEquipment(data.items || []);
+            setTotalPages(data.pages || 1);
         } catch (err) {
-            setError(err.message);
+            setError(err.message || 'Błąd pobierania sprzętu');
         } finally {
             setLoading(false);
         }

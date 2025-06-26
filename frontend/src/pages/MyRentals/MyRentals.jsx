@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+import { rentalsAPI } from '../../utils/api';
 import { 
     ArrowLeft, 
     Package, 
@@ -72,29 +73,21 @@ const MyRentals = () => {
 
     const fetchRentals = async () => {
         setLoading(true);
+        setError('');
         try {
-            const token = localStorage.getItem('access_token');
-            const params = new URLSearchParams({
+            const params = {
                 page: currentPage,
                 size: 10,
                 ...(filter !== 'all' && { status: filter })
-            });
+            };
 
-            const response = await fetch(`http://localhost:8000/api/rentals?${params}`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-
-            if (!response.ok) {
-                throw new Error('Błąd pobierania wypożyczeń');
-            }
-
-            const data = await response.json();
-            setRentals(data.items);
-            setTotalPages(data.pages);
+            const response = await rentalsAPI.getAll(params);
+            const data = response.data;
+            
+            setRentals(data.items || []);
+            setTotalPages(data.pages || 1);
         } catch (err) {
-            setError(err.message);
+            setError(err.message || 'Błąd pobierania wypożyczeń');
         } finally {
             setLoading(false);
         }

@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
+import { paymentsAPI, adminAPI, equipmentAPI } from '../../utils/api'; 
 import {
     LayoutDashboard,
     Package,
@@ -146,12 +147,10 @@ const OverviewTab = ({ stats, onTabChange }) => (
 );
 
 // Komponent dla zatwierdzania płatności
-// Komponent dla zatwierdzania płatności
+// Poprawiony komponent PaymentsTab
 const PaymentsTab = ({ onStatsRefresh }) => {
     const [payments, setPayments] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [selectedPayment, setSelectedPayment] = useState(null);
-    const [showCancelModal, setShowCancelModal] = useState(false);
 
     useEffect(() => {
         fetchPendingPayments();
@@ -159,14 +158,21 @@ const PaymentsTab = ({ onStatsRefresh }) => {
 
     const fetchPendingPayments = async () => {
         try {
-            const token = localStorage.getItem('access_token');
-            const response = await fetch('http://localhost:8000/api/payments?status=pending', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            const data = await response.json();
+            // Możesz użyć adminAPI.getPendingPayments lub paymentsAPI.getAll z filtrem
+            const response = await adminAPI.getPendingPayments({ page: 1, size: 50 });
+            const data = response.data;
             setPayments(data.items || []);
         } catch (error) {
             console.error('Błąd pobierania płatności:', error);
+            // Fallback - spróbuj z ogólnym endpointem
+            try {
+                const response = await paymentsAPI.getAll({ status: 'pending', page: 1, size: 50 });
+                const data = response.data;
+                setPayments(data.items || []);
+            } catch (fallbackError) {
+                console.error('Błąd fallback pobierania płatności:', fallbackError);
+                alert('Błąd pobierania płatności: ' + (fallbackError.message || 'Nieznany błąd'));
+            }
         } finally {
             setLoading(false);
         }
@@ -174,28 +180,19 @@ const PaymentsTab = ({ onStatsRefresh }) => {
 
     const approvePayment = async (paymentId) => {
         try {
-            const token = localStorage.getItem('access_token');
-            const response = await fetch('http://localhost:8000/api/payments/offline-approve', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    payment_id: paymentId,
-                    notes: 'Zatwierdzone przez administratora'
-                })
+            await paymentsAPI.approveOffline({
+                payment_id: paymentId,
+                notes: 'Zatwierdzone przez administratora'
             });
 
-            if (response.ok) {
-                alert('Płatność zatwierdzona pomyślnie!');
-                fetchPendingPayments();
-                if (onStatsRefresh) {
-                    onStatsRefresh();
-                }
+            alert('Płatność zatwierdzona pomyślnie!');
+            fetchPendingPayments();
+            if (onStatsRefresh) {
+                onStatsRefresh();
             }
         } catch (error) {
-            alert('Błąd zatwierdzania płatności');
+            console.error('Błąd zatwierdzania płatności:', error);
+            alert('Błąd zatwierdzania płatności: ' + (error.message || 'Nieznany błąd'));
         }
     };
 
@@ -203,24 +200,16 @@ const PaymentsTab = ({ onStatsRefresh }) => {
         if (!confirm('Czy na pewno chcesz anulować tę płatność?')) return;
 
         try {
-            const token = localStorage.getItem('access_token');
-            const response = await fetch(`http://localhost:8000/api/payments/${paymentId}/cancel`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-
-            if (response.ok) {
-                alert('Płatność anulowana pomyślnie!');
-                fetchPendingPayments();
-                if (onStatsRefresh) {
-                    onStatsRefresh();
-                }
-            } else {
-                const errorData = await response.json();
-                alert('Błąd anulowania: ' + errorData.detail);
+            // Używamy poprawnej metody cancel
+            await adminAPI.cancelPayment(paymentId);
+            alert('Płatność anulowana pomyślnie!');
+            fetchPendingPayments();
+            if (onStatsRefresh) {
+                onStatsRefresh();
             }
         } catch (error) {
-            alert('Błąd połączenia z serwerem');
+            console.error('Błąd anulowania płatności:', error);
+            alert('Błąd anulowania płatności: ' + (error.message || 'Nieznany błąd'));
         }
     };
 
@@ -254,6 +243,9 @@ const PaymentsTab = ({ onStatsRefresh }) => {
                                         </p>
                                         <p className="text-xs md:text-sm text-gray-500">
                                             {payment.rental_equipment_name || 'Brak sprzętu'}
+                                        </p>
+                                        <p className="text-xs text-gray-500">
+                                            Status: {payment.status} • Metoda: {payment.payment_method}
                                         </p>
                                     </div>
                                     <div className="flex items-center space-x-2 w-full sm:w-auto">
@@ -297,11 +289,8 @@ const UsersTab = () => {
 
     const fetchUsers = async () => {
         try {
-            const token = localStorage.getItem('access_token');
-            const response = await fetch('http://localhost:8000/api/admin/users', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            const data = await response.json();
+            const response = await adminAPI.getUsers();
+            const data = response.data;
             setUsers(data.items || []);
         } catch (error) {
             console.error('Błąd pobierania użytkowników:', error);
@@ -312,22 +301,12 @@ const UsersTab = () => {
 
     const toggleUserBlock = async (userId, isBlocked) => {
         try {
-            const token = localStorage.getItem('access_token');
-            const response = await fetch(`http://localhost:8000/api/admin/users/${userId}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    is_blocked: !isBlocked
-                })
+            await adminAPI.updateUser(userId, {
+                is_blocked: !isBlocked
             });
 
-            if (response.ok) {
-                alert(`Użytkownik ${!isBlocked ? 'zablokowany' : 'odblokowany'} pomyślnie!`);
-                fetchUsers();
-            }
+            alert(`Użytkownik ${!isBlocked ? 'zablokowany' : 'odblokowany'} pomyślnie!`);
+            fetchUsers();
         } catch (error) {
             alert('Błąd zmiany statusu użytkownika');
         }
@@ -428,7 +407,7 @@ const UsersTab = () => {
     );
 };
 
-// NOWY KOMPONENT - Zarządzanie sprzętem
+// Komponent zarządzania sprzętem
 const EquipmentTab = () => {
     const [equipment, setEquipment] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -459,23 +438,17 @@ const EquipmentTab = () => {
     const fetchEquipment = async () => {
         setLoading(true);
         try {
-            const token = localStorage.getItem('access_token');
-            const params = new URLSearchParams({
+            const params = {
                 page: currentPage,
                 size: 10,
                 ...(searchTerm && { search: searchTerm }),
                 ...(selectedCategory && { category: selectedCategory })
-            });
+            };
 
-            const response = await fetch(`http://localhost:8000/api/equipment?${params}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                setEquipment(data.items || []);
-                setTotalPages(data.pages || 1);
-            }
+            const response = await equipmentAPI.getAll(params);
+            const data = response.data;
+            setEquipment(data.items || []);
+            setTotalPages(data.pages || 1);
         } catch (error) {
             console.error('Błąd pobierania sprzętu:', error);
         } finally {
@@ -487,16 +460,9 @@ const EquipmentTab = () => {
         if (!confirm('Czy na pewno chcesz usunąć ten sprzęt?')) return;
 
         try {
-            const token = localStorage.getItem('access_token');
-            const response = await fetch(`http://localhost:8000/api/equipment/${equipmentId}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-
-            if (response.ok) {
-                alert('Sprzęt został usunięty!');
-                fetchEquipment();
-            }
+            await equipmentAPI.delete(equipmentId);
+            alert('Sprzęt został usunięty!');
+            fetchEquipment();
         } catch (error) {
             alert('Błąd usuwania sprzętu');
         }
@@ -768,7 +734,7 @@ const EquipmentTab = () => {
     );
 };
 
-// NOWY KOMPONENT - Modal do dodawania/edycji sprzętu
+// Modal do dodawania/edycji sprzętu
 const EquipmentModal = ({ equipment, onClose, onSuccess, categories }) => {
     const [form, setForm] = useState({
         name: '',
@@ -824,13 +790,6 @@ const EquipmentModal = ({ equipment, onClose, onSuccess, categories }) => {
         setError('');
 
         try {
-            const token = localStorage.getItem('access_token');
-            const url = equipment 
-                ? `http://localhost:8000/api/equipment/${equipment.id}`
-                : 'http://localhost:8000/api/equipment';
-            
-            const method = equipment ? 'PUT' : 'POST';
-
             // Przygotowanie danych
             const submitData = {
                 ...form,
@@ -842,24 +801,16 @@ const EquipmentModal = ({ equipment, onClose, onSuccess, categories }) => {
                 min_age: parseInt(form.min_age) || 18
             };
 
-            const response = await fetch(url, {
-                method,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify(submitData)
-            });
-
-            if (response.ok) {
-                alert(`Sprzęt ${equipment ? 'zaktualizowany' : 'dodany'} pomyślnie!`);
-                onSuccess();
+            if (equipment) {
+                await equipmentAPI.update(equipment.id, submitData);
             } else {
-                const errorData = await response.json();
-                setError(errorData.detail || 'Błąd podczas zapisywania');
+                await equipmentAPI.create(submitData);
             }
+
+            alert(`Sprzęt ${equipment ? 'zaktualizowany' : 'dodany'} pomyślnie!`);
+            onSuccess();
         } catch (error) {
-            setError('Błąd połączenia z serwerem');
+            setError(error.message || 'Błąd podczas zapisywania');
         } finally {
             setLoading(false);
         }
@@ -1140,7 +1091,7 @@ const AdminDashboard = () => {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState('overview');
-    const [sidebarOpen, setSidebarOpen] = useState(false); // Domyślnie zamknięty na mobile
+    const [sidebarOpen, setSidebarOpen] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
     const [stats, setStats] = useState({
         totalRentals: 0,
@@ -1187,38 +1138,26 @@ const AdminDashboard = () => {
     // Pobieranie statystyk dashboard
     const fetchDashboardStats = async () => {
         try {
-            const token = localStorage.getItem('access_token');
-            
             const [rentalsRes, usersRes, paymentsRes, equipmentRes] = await Promise.all([
-                fetch('http://localhost:8000/api/admin/rentals?page=1&size=100', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                }),
-                fetch('http://localhost:8000/api/admin/users?page=1&size=1', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                }),
-                fetch('http://localhost:8000/api/payments?page=1&size=100', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                }),
-                fetch('http://localhost:8000/api/equipment?page=1&size=1', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                })
+                adminAPI.getRentals({ page: 1, size: 100 }),
+                adminAPI.getUsers({ page: 1, size: 1 }),
+                paymentsAPI.getAll({ page: 1, size: 100 }),
+                equipmentAPI.getAll({ page: 1, size: 1 })
             ]);
 
-            if (rentalsRes.ok && usersRes.ok && paymentsRes.ok && equipmentRes.ok) {
-                const rentalsData = await rentalsRes.json();
-                const usersData = await usersRes.json();
-                const paymentsData = await paymentsRes.json();
-                const equipmentData = await equipmentRes.json();
+            const rentalsData = rentalsRes.data;
+            const usersData = usersRes.data;
+            const paymentsData = paymentsRes.data;
+            const equipmentData = equipmentRes.data;
 
-                setStats({
-                    totalRentals: rentalsData.total || 0,
-                    activeRentals: rentalsData.items?.filter(r => r.status === 'active').length || 0,
-                    totalUsers: usersData.total || 0,
-                    pendingPayments: paymentsData.items?.filter(p => p.status === 'pending').length || 0,
-                    monthlyRevenue: 12500,
-                    totalEquipment: equipmentData.total || 0
-                });
-            }
+            setStats({
+                totalRentals: rentalsData.total || 0,
+                activeRentals: rentalsData.items?.filter(r => r.status === 'active').length || 0,
+                totalUsers: usersData.total || 0,
+                pendingPayments: paymentsData.items?.filter(p => p.status === 'pending').length || 0,
+                monthlyRevenue: 12500,
+                totalEquipment: equipmentData.total || 0
+            });
         } catch (error) {
             console.error('Błąd pobierania statystyk:', error);
         } finally {

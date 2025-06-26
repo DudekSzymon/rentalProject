@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+import { equipmentAPI, rentalsAPI } from '../../utils/api';
 import { 
     ArrowLeft, 
     Calendar, 
@@ -38,7 +39,6 @@ const RentalForm = () => {
     const [error, setError] = useState('');
     const [pricing, setPricing] = useState(null);
     const [availability, setAvailability] = useState(null);
-    const [step, setStep] = useState(1); // 1: formularz, 2: podsumowanie, 3: płatność
 
     // Pobierz dane sprzętu jeśli nie ma w state
     useEffect(() => {
@@ -56,74 +56,46 @@ const RentalForm = () => {
 
     const fetchEquipment = async () => {
         try {
-            const response = await fetch(`http://localhost:8000/api/equipment/${equipmentId}`);
-            if (response.ok) {
-                const data = await response.json();
-                setEquipment(data);
-            } else {
-                setError('Nie znaleziono sprzętu');
-            }
-        } catch (err) {
-            setError('Błąd pobierania danych sprzętu');
+            const response = await equipmentAPI.getById(equipmentId);
+            setEquipment(response.data);
+        } catch (error) {
+            setError(error.message || 'Nie znaleziono sprzętu');
         }
     };
 
     const checkAvailabilityAndPricing = async () => {
         try {
-            // ZMIANA: Dodaj czas do dat
+            // Dodaj czas do dat
             const startDateTime = new Date(startDate + 'T12:00:00').toISOString(); // Południe
             const endDateTime = new Date(endDate + 'T12:00:00').toISOString();  
-            
-            const token = localStorage.getItem('access_token'); // <- DODANE
 
             // Sprawdź dostępność
-            const availabilityParams = new URLSearchParams({
+            const availabilityParams = {
                 equipment_id: equipment.id,
-                start_date: startDateTime,  // <- ZMIENIONE
-                end_date: endDateTime,      // <- ZMIENIONE
+                start_date: startDateTime,
+                end_date: endDateTime,
                 quantity: quantity
-            });
+            };
 
-            const availabilityResponse = await fetch(
-                `http://localhost:8000/api/rentals/check-availability?${availabilityParams}`,
-                { 
-                    method: 'GET',
-                    headers: {                           // <- DODANE
-                        ...(token && { 'Authorization': `Bearer ${token}` })
-                    }
-                }
-            );
-            
-            if (availabilityResponse.ok) {
-                const availabilityData = await availabilityResponse.json();
-                setAvailability(availabilityData);
+            const availabilityResponse = await rentalsAPI.checkAvailability(availabilityParams);
+            const availabilityData = availabilityResponse.data;
+            setAvailability(availabilityData);
 
-                // Jeśli dostępne, sprawdź cenę
-                if (availabilityData.available) {
-                    const pricingParams = new URLSearchParams({
-                        equipment_id: equipment.id,
-                        start_date: startDateTime,    // <- ZMIENIONE (było startDate)
-                        end_date: endDateTime,        // <- ZMIENIONE (było endDate)
-                        quantity: quantity,
-                        rental_period: rentalPeriod
-                    });
+            // Jeśli dostępne, sprawdź cenę
+            if (availabilityData.available) {
+                const pricingParams = {
+                    equipment_id: equipment.id,
+                    start_date: startDateTime,
+                    end_date: endDateTime,
+                    quantity: quantity,
+                    rental_period: rentalPeriod
+                };
 
-                    const pricingResponse = await fetch(
-                        `http://localhost:8000/api/rentals/pricing-preview?${pricingParams}`,
-                        { 
-                            method: 'GET',
-                            headers: {                   // <- DODANE
-                                ...(token && { 'Authorization': `Bearer ${token}` })
-                            }
-                        }
-                    );
-
-                    if (pricingResponse.ok) {
-                        const pricingData = await pricingResponse.json();
-                        if (pricingData.success) {
-                            setPricing(pricingData.pricing);
-                        }
-                    }
+                const pricingResponse = await rentalsAPI.getPricingPreview(pricingParams);
+                const pricingData = pricingResponse.data;
+                
+                if (pricingData.success) {
+                    setPricing(pricingData.pricing);
                 }
             }
         } catch (err) {
@@ -136,47 +108,34 @@ const RentalForm = () => {
         setLoading(true);
         setError('');
 
-        const token = localStorage.getItem('access_token');
-        if (!token) {
+        if (!user) {
             navigate('/login');
             return;
         }
-        //Tworzymy wypożyczenie
+
         try {
-            const response = await fetch('http://localhost:8000/api/rentals', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-               body: JSON.stringify({
-                    equipment_id: equipment.id,
-                    start_date: new Date(startDate + 'T12:00:00').toISOString(),
-                    end_date: new Date(endDate + 'T12:00:00').toISOString(),
-                    quantity: quantity,
-                    rental_period: rentalPeriod,
-                    notes: notes,
-                    pickup_address: pickupAddress,
-                    return_address: returnAddress,
-                    delivery_required: deliveryRequired
-                })
+            const response = await rentalsAPI.create({
+                equipment_id: equipment.id,
+                start_date: new Date(startDate + 'T12:00:00').toISOString(),
+                end_date: new Date(endDate + 'T12:00:00').toISOString(),
+                quantity: quantity,
+                rental_period: rentalPeriod,
+                notes: notes,
+                pickup_address: pickupAddress,
+                return_address: returnAddress,
+                delivery_required: deliveryRequired
             });
 
-            if (response.ok) {
-                const rentalData = await response.json();
-                // Przekieruj do płatności
-                navigate('/payment', { 
-                    state: { 
-                        rental: rentalData,
-                        equipment: equipment 
-                    } 
-                });
-            } else {
-                const errorData = await response.json();
-                setError(errorData.detail || 'Błąd tworzenia wypożyczenia');
-            }
-        } catch (err) {
-            setError('Błąd sieciowy. Spróbuj ponownie.');
+            const rentalData = response.data;
+            // Przekieruj do płatności
+            navigate('/payment', { 
+                state: { 
+                    rental: rentalData,
+                    equipment: equipment 
+                } 
+            });
+        } catch (error) {
+            setError(error.message || 'Błąd tworzenia wypożyczenia');
         } finally {
             setLoading(false);
         }

@@ -1,148 +1,155 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-
+import { authAPI } from '../utils/api';
 
 const AuthContext = createContext();
 
-
 export const useAuth = () => {
-   const context = useContext(AuthContext);
-   // Sprawdzenie czy hook jest używany wewnątrz AuthProvider
-   if (!context) {
-       throw new Error('useAuth must be used within an AuthProvider');
-   }
-   return context;
+    const context = useContext(AuthContext);
+    if (!context) {
+        throw new Error('useAuth must be used within an AuthProvider');
+    }
+    return context;
 };
 
-// Provider komponenta - dostarcza kontekst uwierzytelniania do całej aplikacji
 export const AuthProvider = ({ children }) => {
-   const [user, setUser] = useState(null);       
-   const [loading, setLoading] = useState(true); 
+    const [user, setUser] = useState(null);
+    const [loading, setLoading] = useState(true);
 
-   useEffect(() => {
-       const checkAuth = async () => {
-           // Pobranie tokenu z localStorage
-           const token = localStorage.getItem('access_token');
-           if (!token) {
+    // Sprawdź czy użytkownik jest zalogowany przy starcie
+    useEffect(() => {
+        const checkAuth = async () => {
+            const accessToken = localStorage.getItem('access_token');
+            const refreshToken = localStorage.getItem('refresh_token');
+            
+            if (!accessToken || !refreshToken) {
+                setLoading(false);
+                return;
+            }
 
-               setLoading(false);
-               return;
-           }
+            try {
+                const response = await authAPI.getMe();
+                const userData = response.data;
+                
+                localStorage.setItem('user', JSON.stringify(userData));
+                setUser({
+                    ...userData,
+                    isAdmin: userData.role === 'admin'
+                });
+            } catch (error) {
+                console.error('Auth check failed:', error);
+                // Nie czyścimy tokenów tutaj - pozwalamy interceptorowi spróbować odświeżyć
+                if (error.response?.status !== 401) {
+                    localStorage.removeItem('access_token');
+                    localStorage.removeItem('refresh_token');
+                    localStorage.removeItem('user');
+                }
+            }
+            
+            setLoading(false);
+        };
 
-           try {
-               // Sprawdzenie ważności tokenu
-               const response = await fetch('http://localhost:8000/api/auth/me', {
-                   headers: { 'Authorization': `Bearer ${token}` }
-               });
+        checkAuth();
+    }, []);
 
-               if (response.ok) {
-                   const userData = await response.json();
-                   localStorage.setItem('user', JSON.stringify(userData));
-                   setUser({
-                       ...userData,
-                       isAdmin: userData.role === 'admin'  // Dodanie flagi administratora
-                   });
-               } else {
-                   // Token nieważny - usuń z localStorage
-                   localStorage.removeItem('access_token');
-               }
-           } catch (error) {
-               console.error('Auth check failed:', error);
-               localStorage.removeItem('access_token');
-           }
-           
-           // Zakończ ładowanie po sprawdzeniu autoryzacji
-           setLoading(false);
-       };
+    // Logowanie
+    const login = async (credentials) => {
+        try {
+            const response = await authAPI.login(credentials);
+            const data = response.data;
+            
+            if (data.access_token && data.refresh_token) {
+                localStorage.setItem('access_token', data.access_token);
+                localStorage.setItem('refresh_token', data.refresh_token);
+                localStorage.setItem('user', JSON.stringify(data.user));
+                setUser({
+                    ...data.user,
+                    isAdmin: data.user.role === 'admin'
+                });
+                return { success: true };
+            }
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    };
 
-       checkAuth();
-   }, []);
+    // Google login
+    const googleLogin = async (googleToken) => {
+        try {
+            const response = await authAPI.googleLogin(googleToken);
+            const data = response.data;
+            
+            if (data.access_token && data.refresh_token) {
+                localStorage.setItem('access_token', data.access_token);
+                localStorage.setItem('refresh_token', data.refresh_token);
+                localStorage.setItem('user', JSON.stringify(data.user));
+                setUser({
+                    ...data.user,
+                    isAdmin: data.user.role === 'admin'
+                });
+                return { success: true };
+            }
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    };
 
-   // Funkcja logowania użytkownika (email + hasło)
-   const login = async (credentials) => {
-       try {
-           // Wysłanie żądania logowania do API
-           const response = await fetch('http://localhost:8000/api/auth/login', {
-               method: 'POST',
-               headers: { 'Content-Type': 'application/json' },
-               body: JSON.stringify(credentials),
-           });
+    // Wylogowanie
+    const logout = async () => {
+        const refreshToken = localStorage.getItem('refresh_token');
+        
+        try {
+            // Poinformuj serwer o wylogowaniu (unieważni refresh token)
+            if (refreshToken) {
+                await authAPI.logout(refreshToken);
+            }
+        } catch (error) {
+            console.error('Logout API call failed:', error);
+            // Kontynuuj wylogowanie nawet jeśli API call się nie powiódł
+        }
+        
+        // Wyczyść dane lokalne
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        localStorage.removeItem('user');
+        setUser(null);
+    };
 
-           if (!response.ok) {
-               // Obsługa błędów logowania
-               const errorData = await response.json();
-               throw new Error(errorData.detail || 'Błąd logowania');
-           }
+    // Funkcja do ręcznego odświeżenia tokenu (opcjonalna)
+    const refreshToken = async () => {
+        const currentRefreshToken = localStorage.getItem('refresh_token');
+        
+        if (!currentRefreshToken) {
+            throw new Error('No refresh token available');
+        }
 
-           const data = await response.json();
-           
-           if (data.access_token) {
-               // Zapisanie tokenu i danych użytkownika
-               localStorage.setItem('access_token', data.access_token);
-               localStorage.setItem('user', JSON.stringify(data.user));
-               setUser({
-                   ...data.user,
-                   isAdmin: data.user.role === 'admin'  //flaga adminia
-               });
-               return { success: true };
-           }
-       } catch (error) {
-           // Zwrócenie informacji o błędzie
-           return { success: false, error: error.message };
-       }
-   };
+        try {
+            const response = await authAPI.refreshToken(currentRefreshToken);
+            const data = response.data;
+            
+            localStorage.setItem('access_token', data.access_token);
+            localStorage.setItem('refresh_token', data.refresh_token);
+            
+            return data.access_token;
+        } catch (error) {
+            // Jeśli odświeżenie się nie powiodło, wyloguj użytkownika
+            logout();
+            throw error;
+        }
+    };
 
-   const googleLogin = async (googleToken) => {
-       try {
-           // Wysłanie tokenu Google
-           const response = await fetch('http://localhost:8000/api/auth/google', {
-               method: 'POST',
-               headers: { 'Content-Type': 'application/json' },
-               body: JSON.stringify({ token: googleToken }),
-           });
+    const value = {
+        user,
+        loading,
+        login,
+        googleLogin,
+        logout,
+        refreshToken,
+        setUser
+    };
 
-           if (!response.ok) {
-               // Obsługa błędów logowania Google
-               const errorData = await response.json();
-               throw new Error(errorData.detail || 'Błąd logowania przez Google');
-           }
-
-           const data = await response.json();
-           
-           if (data.access_token) {
-               localStorage.setItem('access_token', data.access_token);
-               localStorage.setItem('user', JSON.stringify(data.user));
-               setUser({
-                   ...data.user,
-                   isAdmin: data.user.role === 'admin'  // Dodanie flagi administratora
-               });
-               return { success: true };
-           }
-       } catch (error) {
-           // Zwrócenie informacji o błędzie
-           return { success: false, error: error.message };
-       }
-   };
-
-   // Funkcja wylogowania użytkownika
-   const logout = () => {
-       localStorage.removeItem('access_token');  
-       setUser(null);                           // Wyczyść stan użytkownika
-   };
-
-   // Obiekt wartości dostarczanych przez kontekst
-   const value = {
-       user,        
-       loading,        
-       login,          
-       googleLogin,    
-       logout,         
-       setUser
-   };
-
-   // Provider udostępniający kontekst wszystkim komponentom potomnym
-   return (
-       <AuthContext.Provider value={value}>
-           {children}
-       </AuthContext.Provider>
-   );
+    return (
+        <AuthContext.Provider value={value}>
+            {children}
+        </AuthContext.Provider>
+    );
 };
