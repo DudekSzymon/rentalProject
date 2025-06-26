@@ -135,10 +135,10 @@ async def create_stripe_payment_intent(
             detail="Stripe nie jest skonfigurowany"
         )
 
-    # NOWY KOD: Sprawdzenie czy wypożyczenie istnieje (TYLKO JEŚLI rental_id podane)
-    rental = None  # Inicjalizuj rental na początku
+  
+    rental = None  
     
-    # NOWA LOGIKA: Anuluj istniejące pending płatności
+   
     if payment_data.rental_id:
         existing_payments = db.query(Payment).filter(
             Payment.rental_id == payment_data.rental_id,
@@ -152,7 +152,7 @@ async def create_stripe_payment_intent(
         if existing_payments:
             db.commit()
     
-    # Sprawdź czy już nie ma aktywnej płatności dla tego wypożyczenia (TYLKO jeśli rental_id istnieje)
+    
     if payment_data.rental_id:
         existing_payment = db.query(Payment).filter(
             Payment.rental_id == payment_data.rental_id,
@@ -178,21 +178,21 @@ async def create_stripe_payment_intent(
         else:
             metadata['type'] = 'test_payment'
         
-        # Przygotuj opis płatności
+        
         if rental and hasattr(rental, 'equipment_id'):
-            # Jeśli mamy rental, spróbuj pobrać nazwę sprzętu
+            
             equipment = db.query(Equipment).filter(Equipment.id == rental.equipment_id).first()
             equipment_name = equipment.name if equipment else "Nieznany sprzęt"
             description = f"Wypożyczenie: {equipment_name} (ID: {payment_data.rental_id})"
         else:
-            # Dla płatności testowych lub bez rental
+           
             description = f"Płatność testowa - {payment_data.amount} {payment_data.currency.upper()}"
         
         # Utworzenie Payment Intent w Stripe
         intent = stripe.PaymentIntent.create(
-            amount=int(payment_data.amount * 100),  # Stripe używa groszy
+            amount=int(payment_data.amount * 100),  #Są używane grosze dlatego przez 100
             currency=payment_data.currency.lower(),
-            automatic_payment_methods={'enabled': True},  # Obsługa różnych metod płatności
+            automatic_payment_methods={'enabled': True},  
             metadata=metadata,
             description=description
         )
@@ -215,7 +215,7 @@ async def create_stripe_payment_intent(
         db.refresh(new_payment)
         
         logger.info(f"Utworzono Payment Intent {intent.id} dla użytkownika {current_user.email}")
-        
+        #Zwracane do fronta
         return StripePaymentResponse(
             client_secret=intent.client_secret,
             payment_intent_id=intent.id,
@@ -240,7 +240,7 @@ async def confirm_stripe_payment(
     """Potwierdzenie płatności Stripe"""
     
     try:
-        # Pobranie Payment Intent z Stripe
+        
         intent = stripe.PaymentIntent.retrieve(payment_intent_id)
         
         # Znalezienie płatności w bazie
@@ -260,7 +260,7 @@ async def confirm_stripe_payment(
             payment.status = PaymentStatus.COMPLETED
             payment.processed_at = datetime.utcnow()
             
-            # Aktualizacja statusu wypożyczenia (tylko jeśli rental_id istnieje)
+            # Potwierdzamy wypożyczenie
             if payment.rental_id:
                 rental = db.query(Rental).filter(Rental.id == payment.rental_id).first()
                 if rental and rental.status == RentalStatus.PENDING:
@@ -371,6 +371,157 @@ async def create_offline_payment(
     
     return PaymentResponse.from_orm(new_payment)
 
+@router.post("/{payment_id}/cancel", response_model=PaymentResponse)
+async def cancel_payment(
+    payment_id: int,
+    admin_user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """Anulowanie płatności przez administratora"""
+    
+    payment = db.query(Payment).filter(Payment.id == payment_id).first()
+    
+    if not payment:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Płatność nie znaleziona"
+        )
+    
+    # Sprawdź czy płatność może być anulowana
+    if payment.status not in [PaymentStatus.COMPLETED, PaymentStatus.OFFLINE_APPROVED, PaymentStatus.PENDING, PaymentStatus.PROCESSING]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Płatność ze statusem {payment.status} nie może być anulowana"
+        )
+    
+    try:
+        # Obsługa anulowania Stripe
+        if payment.payment_method == PaymentMethod.STRIPE and payment.external_id and payment.status == PaymentStatus.COMPLETED:
+            try:
+                # Utworz refund w Stripe
+                refund = stripe.Refund.create(
+                    payment_intent=payment.external_id,
+                    metadata={
+                        'admin_id': str(admin_user.id),
+                        'admin_email': admin_user.email,
+                        'reason': 'admin_cancellation'
+                    }
+                )
+                
+                payment.status = PaymentStatus.REFUNDED
+                payment.external_status = 'refunded'
+                payment.failure_reason = f"Anulowane przez administratora {admin_user.email}"
+                
+                logger.info(f"Stripe refund created: {refund.id} for payment {payment.id}")
+                
+            except stripe.error.StripeError as e:
+                logger.error(f"Stripe refund error: {str(e)}")
+                # Jeśli refund w Stripe się nie powiedzie, oznacz jako anulowane w naszym systemie
+                payment.status = PaymentStatus.CANCELLED
+                payment.failure_reason = f"Anulowane przez administratora {admin_user.email}. Błąd Stripe: {str(e)}"
+        
+        # Obsługa anulowania offline/innych
+        else:
+            payment.status = PaymentStatus.CANCELLED
+            payment.failure_reason = f"Anulowane przez administratora {admin_user.email}"
+        
+        payment.offline_approved_by = admin_user.id
+        payment.offline_approved_at = datetime.utcnow()
+        
+        # Aktualizuj status wypożyczenia jeśli istnieje
+        if payment.rental_id:
+            rental = db.query(Rental).filter(Rental.id == payment.rental_id).first()
+            if rental and rental.status in [RentalStatus.CONFIRMED, RentalStatus.PENDING]:
+                rental.status = RentalStatus.CANCELLED
+                
+                # Zwróć dostępność sprzętu jeśli była zarezerwowana
+                equipment = db.query(Equipment).filter(Equipment.id == rental.equipment_id).first()
+                if equipment and rental.status == RentalStatus.CONFIRMED:
+                    equipment.quantity_available += rental.quantity
+        
+        db.commit()
+        db.refresh(payment)
+        
+        logger.info(f"Payment {payment.id} cancelled by admin {admin_user.email}")
+        
+        return PaymentResponse.from_orm(payment)
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error cancelling payment {payment_id}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Błąd anulowania płatności: {str(e)}"
+        )
+@router.get("/admin/all", response_model=PaymentListResponse)
+async def get_all_payments_admin(
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100),
+    status: Optional[PaymentStatus] = None,
+    payment_method: Optional[PaymentMethod] = None,
+    search: Optional[str] = None,
+    admin_user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """Pobranie wszystkich płatności dla admina z filtrami"""
+    
+    from sqlalchemy import or_, func
+    
+    query = db.query(Payment)
+    
+    # Filtry
+    if status:
+        query = query.filter(Payment.status == status)
+    
+    if payment_method:
+        query = query.filter(Payment.payment_method == payment_method)
+    
+    if search:
+        # Szukaj po email użytkownika lub ID płatności
+        search_term = f"%{search}%"
+        user_subquery = db.query(User.id).filter(
+            func.lower(User.email).contains(search_term.lower())
+        )
+        
+        query = query.filter(
+            or_(
+                Payment.user_id.in_(user_subquery),
+                Payment.id.like(search_term),
+                Payment.external_id.like(search_term) if Payment.external_id else False
+            )
+        )
+    
+    # Paginacja
+    total = query.count()
+    offset = (page - 1) * size
+    payments = query.order_by(Payment.created_at.desc()).offset(offset).limit(size).all()
+    
+    # Dodanie informacji o użytkownikach i wypożyczeniach
+    items = []
+    for payment in payments:
+        payment_dict = PaymentResponse.from_orm(payment).dict()
+        
+        user = db.query(User).filter(User.id == payment.user_id).first()
+        payment_dict["user_email"] = user.email if user else None
+        
+        if payment.rental_id:
+            rental = db.query(Rental).filter(Rental.id == payment.rental_id).first()
+            if rental:
+                equipment = db.query(Equipment).filter(Equipment.id == rental.equipment_id).first()
+                payment_dict["rental_equipment_name"] = equipment.name if equipment else None
+        
+        items.append(PaymentResponse(**payment_dict))
+    
+    pages = math.ceil(total / size) if total > 0 else 1
+    
+    return PaymentListResponse(
+        items=items,
+        total=total,
+        page=page,
+        size=size,
+        pages=pages
+    )
+
 @router.get("", response_model=PaymentListResponse)
 async def get_payments(
     page: int = Query(1, ge=1),
@@ -445,3 +596,4 @@ async def get_payment(
         )
     
     return PaymentResponse.from_orm(payment)
+

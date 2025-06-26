@@ -36,7 +36,7 @@ async def add_cors_headers(request: Request, call_next):
 # Dodanie CORS
 add_cors_middleware(app)
 
-# Rejestracja routerów (CONTROLLERS w MVC)
+# Rejestracja routerów (CONTROLLERS w MVC) prefiksowane endpoint
 app.include_router(auth_controller.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(equipment_controller.router, prefix="/api/equipment", tags=["Equipment"])
 app.include_router(rental_controller.router, prefix="/api/rentals", tags=["Rentals"])

@@ -1,4 +1,4 @@
-from decouple import config
+from decouple import config #Automatycznie czyta dane z .env
 
 class Settings:
     # Database
@@ -9,7 +9,6 @@ class Settings:
     ALGORITHM: str = config("ALGORITHM", default="HS256")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = config("ACCESS_TOKEN_EXPIRE_MINUTES", default=30, cast=int)
     
-    # OAuth Settings - usuń spacje
     GOOGLE_CLIENT_ID: str = config("GOOGLE_CLIENT_ID", default="").strip()
     GOOGLE_CLIENT_SECRET: str = config("GOOGLE_CLIENT_SECRET", default="").strip()
     

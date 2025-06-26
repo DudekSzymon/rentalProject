@@ -146,9 +146,12 @@ const OverviewTab = ({ stats, onTabChange }) => (
 );
 
 // Komponent dla zatwierdzania płatności
+// Komponent dla zatwierdzania płatności
 const PaymentsTab = ({ onStatsRefresh }) => {
     const [payments, setPayments] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [selectedPayment, setSelectedPayment] = useState(null);
+    const [showCancelModal, setShowCancelModal] = useState(false);
 
     useEffect(() => {
         fetchPendingPayments();
@@ -196,6 +199,31 @@ const PaymentsTab = ({ onStatsRefresh }) => {
         }
     };
 
+    const cancelPayment = async (paymentId) => {
+        if (!confirm('Czy na pewno chcesz anulować tę płatność?')) return;
+
+        try {
+            const token = localStorage.getItem('access_token');
+            const response = await fetch(`http://localhost:8000/api/payments/${paymentId}/cancel`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (response.ok) {
+                alert('Płatność anulowana pomyślnie!');
+                fetchPendingPayments();
+                if (onStatsRefresh) {
+                    onStatsRefresh();
+                }
+            } else {
+                const errorData = await response.json();
+                alert('Błąd anulowania: ' + errorData.detail);
+            }
+        } catch (error) {
+            alert('Błąd połączenia z serwerem');
+        }
+    };
+
     return (
         <div className="space-y-4 md:space-y-6">
             <Card className="bg-gray-800 border-gray-700">
@@ -228,14 +256,25 @@ const PaymentsTab = ({ onStatsRefresh }) => {
                                             {payment.rental_equipment_name || 'Brak sprzętu'}
                                         </p>
                                     </div>
-                                    <Button
-                                        onClick={() => approvePayment(payment.id)}
-                                        className="bg-green-600 hover:bg-green-700 w-full sm:w-auto min-h-[44px]"
-                                        size="sm"
-                                    >
-                                        <CheckCircle className="w-4 h-4 mr-2" />
-                                        Zatwierdź
-                                    </Button>
+                                    <div className="flex items-center space-x-2 w-full sm:w-auto">
+                                        <Button
+                                            onClick={() => approvePayment(payment.id)}
+                                            className="bg-green-600 hover:bg-green-700 flex-1 sm:flex-none min-h-[44px]"
+                                            size="sm"
+                                        >
+                                            <CheckCircle className="w-4 h-4 mr-2" />
+                                            Zatwierdź
+                                        </Button>
+                                        <Button
+                                            onClick={() => cancelPayment(payment.id)}
+                                            variant="outline"
+                                            className="border-red-600 text-red-400 hover:bg-red-600/20 flex-1 sm:flex-none min-h-[44px]"
+                                            size="sm"
+                                        >
+                                            <Ban className="w-4 h-4 mr-2" />
+                                            <span className="hidden sm:inline">Anuluj</span>
+                                        </Button>
+                                    </div>
                                 </div>
                             ))}
                         </div>
