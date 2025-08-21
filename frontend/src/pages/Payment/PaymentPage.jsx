@@ -37,19 +37,20 @@ const StripePaymentForm = ({ rental, equipment, onPaymentSuccess, onPaymentError
 
     // Tworzenie Payment Intent przy montowaniu komponentu
     useEffect(() => {
-        createPaymentIntent();
+        createPaymentIntent(); //To się dzieje automatycznie gdy strona się ładuje
     }, []);
 
     const createPaymentIntent = async () => {
         try {
+            //Wysyłamy  dane o wypożyczeniu do naszego backendu
             const response = await paymentsAPI.createStripeIntent({
                 rental_id: rental.id,
                 amount: parseFloat(rental.total_price),
                 currency: 'pln'
             });
-
+            //ODPOWIEDŹ Z BACKENDU
             const data = response.data;
-            setClientSecret(data.client_secret);
+            setClientSecret(data.client_secret); //zapisujemy client_secret
             setPaymentIntent({
                 id: data.payment_intent_id,
                 payment_id: data.payment_id
@@ -60,7 +61,7 @@ const StripePaymentForm = ({ rental, equipment, onPaymentSuccess, onPaymentError
             onPaymentError?.(err.message);
         }
     };
-
+    //UŻYTKOWNIK WYPEŁNIA DANE KARTY i KLIKA ZAPŁAĆ
     const handleSubmit = async (event) => {
         event.preventDefault();
 
@@ -74,9 +75,12 @@ const StripePaymentForm = ({ rental, equipment, onPaymentSuccess, onPaymentError
         const cardElement = elements.getElement(CardElement);
 
         try {
-            const { error, paymentIntent: confirmedPayment } = await stripe.confirmCardPayment(clientSecret, {
+            //Frontend bezpośrednio wywołuje STRIPE API 
+            const { error, paymentIntent: confirmedPayment } = await 
+            stripe.confirmCardPayment(clientSecret, {
+                // = {Dane z płatności}
                 payment_method: {
-                    card: cardElement,
+                    card: cardElement, //Dane z karty formularza
                     billing_details: {
                         name: `${user.first_name} ${user.last_name}`,
                         email: user.email
@@ -87,6 +91,7 @@ const StripePaymentForm = ({ rental, equipment, onPaymentSuccess, onPaymentError
             if (error) {
                 setError(error.message);
                 onPaymentError?.(error.message);
+                //Informujemy backend o sukcesie
             } else if (confirmedPayment.status === 'succeeded') {
                 // Płatność udana - sprawdź status w backendzie
                 await confirmPaymentInBackend(confirmedPayment.id);
@@ -251,8 +256,8 @@ const PaymentSuccess = ({ rental, equipment, paymentIntent }) => {
 const PaymentPage = () => {
     const location = useLocation();
     const navigate = useNavigate();
-    const rental = location.state?.rental;
-    const equipment = location.state?.equipment;
+    const rental = location.state?.rental; //Dane do wypożyczenia
+    const equipment = location.state?.equipment; //Dane sprzętu
     
     const [stripePromise, setStripePromise] = useState(null);
     const [paymentMethod, setPaymentMethod] = useState('card'); // 'card' lub 'offline'
@@ -312,7 +317,7 @@ const PaymentPage = () => {
         setPaymentSuccess(true);
         setPaymentData({ offline: true });
     };
-
+    //Zamienia stan na sukces
     const handlePaymentSuccess = (paymentIntent) => {
         setPaymentSuccess(true);
         setPaymentData(paymentIntent);

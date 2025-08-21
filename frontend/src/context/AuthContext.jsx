@@ -18,20 +18,24 @@ export const AuthProvider = ({ children }) => {
     // Sprawdź czy użytkownik jest zalogowany przy starcie
     useEffect(() => {
         const checkAuth = async () => {
+            //Sprawdzamy czy są tokeny w localStorage
             const accessToken = localStorage.getItem('access_token');
             const refreshToken = localStorage.getItem('refresh_token');
             
             if (!accessToken || !refreshToken) {
-                setLoading(false);
+                setLoading(false); //Brak tokenów = nie zalogowany
                 return;
             }
 
             try {
+                //Zapytaj API o dane użytkownika:
                 const response = await authAPI.getMe();
                 const userData = response.data;
                 
+                //Zapisz dane w localStorage (backup)
                 localStorage.setItem('user', JSON.stringify(userData));
-                setUser({
+
+                setUser({ //Ustaw stan w context - to jest kluczowe!
                     ...userData,
                     isAdmin: userData.role === 'admin'
                 });
@@ -56,13 +60,13 @@ export const AuthProvider = ({ children }) => {
         try {
             const response = await authAPI.login(credentials);
             const data = response.data;
-            
+            //ZAPISANIE OBYDWU tokenów (NIE GOOGLE)
             if (data.access_token && data.refresh_token) {
-                localStorage.setItem('access_token', data.access_token);
-                localStorage.setItem('refresh_token', data.refresh_token);
+                localStorage.setItem('access_token', data.access_token); // <- 30s
+                localStorage.setItem('refresh_token', data.refresh_token); // <- 15min
                 localStorage.setItem('user', JSON.stringify(data.user));
                 setUser({
-                    ...data.user,
+                    ...data.user, //Mechanizm co dopełnia tablice
                     isAdmin: data.user.role === 'admin'
                 });
                 return { success: true };
@@ -75,6 +79,7 @@ export const AuthProvider = ({ children }) => {
     // Google login
     const googleLogin = async (googleToken) => {
         try {
+            //Tutaj mamy call na endpoint i odnosimy się do zaimporotowanego pliku api.js
             const response = await authAPI.googleLogin(googleToken);
             const data = response.data;
             
