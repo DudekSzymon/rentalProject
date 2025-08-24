@@ -14,7 +14,6 @@ import {
   ArrowLeft,
   Calendar,
   Euro,
-  MapPin,
   AlertCircle,
   CheckCircle,
   Clock,
@@ -33,11 +32,7 @@ const RentalForm = () => {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [quantity, setQuantity] = useState(1);
-  const [rentalPeriod, setRentalPeriod] = useState("daily");
   const [notes, setNotes] = useState("");
-  const [pickupAddress, setPickupAddress] = useState("");
-  const [returnAddress, setReturnAddress] = useState("");
-  const [deliveryRequired, setDeliveryRequired] = useState(false);
 
   // Stan UI
   const [loading, setLoading] = useState(false);
@@ -57,7 +52,7 @@ const RentalForm = () => {
     if (equipment && startDate && endDate && quantity) {
       checkAvailabilityAndPricing();
     }
-  }, [equipment, startDate, endDate, quantity, rentalPeriod]);
+  }, [equipment, startDate, endDate, quantity]);
 
   const fetchEquipment = async () => {
     try {
@@ -95,7 +90,7 @@ const RentalForm = () => {
           start_date: startDateTime,
           end_date: endDateTime,
           quantity: quantity,
-          rental_period: rentalPeriod,
+          rental_period: "daily", // Zawsze dzienny
         };
 
         const pricingResponse = await rentalsAPI.getPricingPreview(
@@ -122,30 +117,14 @@ const RentalForm = () => {
       return;
     }
 
-    // Sprawdź czy adresy są wypełnione
-    if (!pickupAddress.trim()) {
-      setError("Adres odbioru jest wymagany");
-      setLoading(false);
-      return;
-    }
-
-    if (!returnAddress.trim()) {
-      setError("Adres zwrotu jest wymagany");
-      setLoading(false);
-      return;
-    }
-
     try {
       const response = await rentalsAPI.create({
         equipment_id: equipment.id,
         start_date: new Date(startDate + "T12:00:00").toISOString(),
         end_date: new Date(endDate + "T12:00:00").toISOString(),
         quantity: quantity,
-        rental_period: rentalPeriod,
+        rental_period: "daily", // Zawsze dzienny
         notes: notes,
-        pickup_address: pickupAddress,
-        return_address: returnAddress,
-        delivery_required: deliveryRequired,
       });
 
       const rentalData = response.data;
@@ -243,6 +222,8 @@ const RentalForm = () => {
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-8">
+
+
                   {/* Daty */}
                   <div>
                     <h3 className="text-gray-900 font-semibold mb-4 flex items-center">
@@ -279,96 +260,30 @@ const RentalForm = () => {
                     </div>
                   </div>
 
-                  {/* Ilość i okres rozliczeniowy */}
+                  {/* Ilość */}
                   <div>
                     <h3 className="text-gray-900 font-semibold mb-4 flex items-center">
                       <Package className="w-4 h-4 mr-2" />
-                      Parametry wypożyczenia
+                      Ilość sprzętu
                     </h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Ilość
-                        </label>
-                        <Input
-                          type="number"
-                          value={quantity}
-                          onChange={(e) =>
-                            setQuantity(parseInt(e.target.value))
-                          }
-                          min="1"
-                          max={equipment.quantity_available}
-                          required
-                          className="h-12 px-4 py-3 bg-gray-50 border-0 rounded-xl text-gray-900 focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all duration-200"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Okres rozliczeniowy
-                        </label>
-                        <select
-                          value={rentalPeriod}
-                          onChange={(e) => setRentalPeriod(e.target.value)}
-                          className="w-full h-12 px-4 py-3 bg-gray-50 border-0 rounded-xl text-gray-900 focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all duration-200"
-                        >
-                          <option value="daily">Dzienny</option>
-                          <option value="weekly">Tygodniowy</option>
-                          <option value="monthly">Miesięczny</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Adresy */}
-                  <div>
-                    <h3 className="text-gray-900 font-semibold mb-4 flex items-center">
-                      <MapPin className="w-4 h-4 mr-2" />
-                      Lokalizacja *
-                    </h3>
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Adres odbioru *
-                        </label>
-                        <Input
-                          type="text"
-                          value={pickupAddress}
-                          onChange={(e) => setPickupAddress(e.target.value)}
-                          placeholder="Adres gdzie odbierzesz sprzęt"
-                          className="h-14 px-4 py-3 bg-gray-50 border-0 rounded-xl text-gray-900 placeholder-gray-500 focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all duration-200"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Adres zwrotu *
-                        </label>
-                        <Input
-                          type="text"
-                          value={returnAddress}
-                          onChange={(e) => setReturnAddress(e.target.value)}
-                          placeholder="Adres gdzie zwrócisz sprzęt"
-                          className="h-14 px-4 py-3 bg-gray-50 border-0 rounded-xl text-gray-900 placeholder-gray-500 focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all duration-200"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Dostawa */}
-                  <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                    <div className="flex items-center space-x-3">
-                      <input
-                        type="checkbox"
-                        id="delivery"
-                        checked={deliveryRequired}
-                        onChange={(e) => setDeliveryRequired(e.target.checked)}
-                        className="w-4 h-4 text-blue-600 bg-white border border-gray-300 rounded focus:ring-blue-500"
-                      />
-                      <label
-                        htmlFor="delivery"
-                        className="text-gray-900 font-medium"
-                      >
-                        🚚 Potrzebuję dostawy na miejsce
+                    <div className="max-w-xs">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Ilość
                       </label>
+                      <Input
+                        type="number"
+                        value={quantity}
+                        onChange={(e) =>
+                          setQuantity(parseInt(e.target.value))
+                        }
+                        min="1"
+                        max={equipment.quantity_available}
+                        required
+                        className="h-12 px-4 py-3 bg-gray-50 border-0 rounded-xl text-gray-900 focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all duration-200"
+                      />
+                      <p className="text-sm text-gray-500 mt-1">
+                        Dostępne: {equipment.quantity_available} szt.
+                      </p>
                     </div>
                   </div>
 
@@ -516,13 +431,13 @@ const RentalForm = () => {
                   <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
                     <div className="space-y-3 text-sm">
                       <div className="flex justify-between text-gray-600">
-                        <span>Cena jednostkowa:</span>
+                        <span>Cena za dzień:</span>
                         <span className="text-gray-900">
                           {pricing.unit_price} zł
                         </span>
                       </div>
                       <div className="flex justify-between text-gray-600">
-                        <span>Jednostki rozliczeniowe:</span>
+                        <span>Liczba dni:</span>
                         <span className="text-gray-900">
                           {pricing.billable_units}
                         </span>
@@ -530,7 +445,7 @@ const RentalForm = () => {
                       <div className="flex justify-between text-gray-600">
                         <span>Ilość:</span>
                         <span className="text-gray-900">
-                          {pricing.quantity}
+                          {pricing.quantity} szt.
                         </span>
                       </div>
                       <div className="border-t border-gray-300 pt-3">
