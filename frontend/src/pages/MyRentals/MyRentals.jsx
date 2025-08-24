@@ -441,8 +441,7 @@ const MyRentals = () => {
                                       {rental.quantity || 1}
                                     </p>
                                     <p className="text-orange-600 text-xs font-medium">
-                                      {rental.rental_period || "daily"}{" "}
-                                      rozliczenie
+                                      dzienny rozliczenie
                                     </p>
                                   </div>
                                 </div>
@@ -461,21 +460,7 @@ const MyRentals = () => {
                               </div>
                             )}
                           </div>
-
-                          <div className="ml-6 flex flex-col space-y-3">
-                            {rental.status === "pending" && (
-                              <Button
-                                onClick={() =>
-                                  navigate(`/rent/${rental.equipment_id}`, {
-                                    state: { rental: rental },
-                                  })
-                                }
-                                className="bg-yellow-500 hover:bg-yellow-600 text-white text-sm py-2 px-4 rounded-lg transition-all hover:scale-105"
-                              >
-                                Edytuj
-                              </Button>
-                            )}
-                          </div>
+                          {/* USUNIĘTO CAŁĄ SEKCJĘ Z PRZYCISKIEM EDYTUJ */}
                         </div>
                       </div>
                     </div>

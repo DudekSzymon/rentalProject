@@ -9,7 +9,7 @@ import math
 from ..database import get_db
 from ..models.user import User
 from ..models.equipment import Equipment, EquipmentStatus
-from ..models.rental import Rental, RentalStatus, RentalPeriod
+from ..models.rental import Rental, RentalStatus
 from ..models.payment import Payment, PaymentStatus
 from ..views.rental_schemas import (
     RentalCreate, RentalUpdate, RentalResponse, 
@@ -61,11 +61,11 @@ async def get_rental_pricing_preview(
     start_date: datetime,
     end_date: datetime,
     quantity: int = 1,
-    rental_period: RentalPeriod = RentalPeriod.DAILY,
     db: Session = Depends(get_db)
 ):
     try:
-        pricing = RentalService(db).get_pricing_preview(equipment_id, start_date, end_date, quantity, rental_period)
+        # Usunięto rental_period - zawsze dzienny
+        pricing = RentalService(db).get_pricing_preview(equipment_id, start_date, end_date, quantity)
         return {"success": True, "pricing": pricing, "message": "Cennik obliczony pomyślnie"}
     except HTTPException as e:
         return {"success": False, "error": e.detail, "pricing": None}

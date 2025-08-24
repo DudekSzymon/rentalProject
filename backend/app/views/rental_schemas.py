@@ -12,18 +12,12 @@ class RentalStatus(str, Enum):
     CANCELLED = "cancelled"
     OVERDUE = "overdue"
 
-class RentalPeriod(str, Enum):
-    DAILY = "daily"
-    WEEKLY = "weekly"
-    MONTHLY = "monthly"
-
-# Schema do tworzenia wypożyczenia
+# Schema do tworzenia wypożyczenia - usunięto rental_period (zawsze dzienny)
 class RentalCreate(BaseModel):
     equipment_id: int
     start_date: datetime
     end_date: datetime
     quantity: int = 1
-    rental_period: RentalPeriod = RentalPeriod.DAILY
     notes: Optional[str] = None
     pickup_address: Optional[str] = None
     return_address: Optional[str] = None
@@ -41,7 +35,7 @@ class RentalCreate(BaseModel):
             raise ValueError('Ilość musi być większa od 0')
         return v
 
-# Schema do aktualizacji wypożyczenia (admin/user)
+# Schema do aktualizacji wypożyczenia (admin/user) - usunięto opłaty za uszkodzenia
 class RentalUpdate(BaseModel):
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
@@ -52,8 +46,6 @@ class RentalUpdate(BaseModel):
     return_address: Optional[str] = None
     condition_before: Optional[str] = None
     condition_after: Optional[str] = None
-    late_fee: Optional[Decimal] = None
-    damage_fee: Optional[Decimal] = None
 
 # Schema odpowiedzi - skrócona (dla list)
 class RentalSummary(BaseModel):
@@ -65,7 +57,7 @@ class RentalSummary(BaseModel):
     total_price: Decimal
     created_at: datetime
 
-# Schema odpowiedzi - pełna (dla szczegółów)
+# Schema odpowiedzi - pełna (dla szczegółów) - usunięto nieużywane pola
 class RentalResponse(BaseModel):
     id: int
     user_id: int
@@ -74,12 +66,9 @@ class RentalResponse(BaseModel):
     end_date: datetime
     actual_return_date: Optional[datetime]
     quantity: int
-    rental_period: RentalPeriod
     unit_price: Decimal
     total_price: Decimal
     deposit_amount: Decimal
-    late_fee: Decimal
-    damage_fee: Decimal
     status: RentalStatus
     notes: Optional[str]
     admin_notes: Optional[str]
@@ -89,7 +78,6 @@ class RentalResponse(BaseModel):
     condition_before: Optional[str]
     condition_after: Optional[str]
     duration_days: int  # Property z modelu
-    final_amount: Decimal  # Property z modelu
     created_at: datetime
     updated_at: datetime
     
@@ -99,6 +87,11 @@ class RentalResponse(BaseModel):
     
     class Config:
         from_attributes = True
+        
+    # Opcjonalnie możesz dodać te pola jako computed
+    @property
+    def final_amount(self) -> Decimal:
+        return self.total_price
 
 # Lista wypożyczeń
 class RentalListResponse(BaseModel):
@@ -107,13 +100,13 @@ class RentalListResponse(BaseModel):
     page: int
     size: int
     pages: int
-    # Dodaj te schemas na końcu pliku rental_schemas.py (po istniejących)
 
+# Uproszczony preview cennika - tylko dzienny
 class RentalPricingPreview(BaseModel):
     equipment_name: str
     equipment_daily_rate: Decimal
     unit_price: Decimal
-    billable_units: int
+    billable_units: int  # liczba dni
     quantity: int
     subtotal: Decimal
     deposit_amount: Decimal

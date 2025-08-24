@@ -5,7 +5,7 @@ from sqlalchemy import and_, or_
 from fastapi import HTTPException, status
 from decimal import Decimal
 
-from ..models.rental import Rental, RentalStatus, RentalPeriod
+from ..models.rental import Rental, RentalStatus
 from ..models.equipment import Equipment, EquipmentStatus
 from ..models.user import User
 from ..models.payment import Payment, PaymentStatus, PaymentType
@@ -66,7 +66,8 @@ class RentalService:
                 detail="Sprzęt nie znaleziony"
             )
         
-        if equipment.status != EquipmentStatus.AVAILABLE:
+        # Sprawdzamy tylko dostępny i wynajęty (usunięto uszkodzony)
+        if equipment.status not in [EquipmentStatus.AVAILABLE, EquipmentStatus.RENTED]:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Sprzęt jest w statusie: {equipment.status}"
@@ -111,25 +112,13 @@ class RentalService:
         equipment: Equipment, 
         start_date: datetime, 
         end_date: datetime, 
-        quantity: int, 
-        rental_period: RentalPeriod
+        quantity: int
     ) -> dict:
         duration_days = max(1, (end_date - start_date).days)
         
-        if rental_period == RentalPeriod.DAILY:
-            unit_price = equipment.daily_rate
-            billable_units = duration_days
-        elif rental_period == RentalPeriod.WEEKLY:
-            unit_price = equipment.weekly_rate or (equipment.daily_rate * 7)
-            billable_units = max(1, (duration_days + 6) // 7)
-        elif rental_period == RentalPeriod.MONTHLY:
-            unit_price = equipment.monthly_rate or (equipment.daily_rate * 30)
-            billable_units = max(1, (duration_days + 29) // 30)
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Nieprawidłowy okres rozliczeniowy"
-            )
+        # Tylko rozliczenie dzienne
+        unit_price = equipment.daily_rate
+        billable_units = duration_days
         
         subtotal = unit_price * billable_units * quantity
         deposit = unit_price * Decimal('0.2') * quantity
@@ -179,12 +168,12 @@ class RentalService:
         
         self.validate_user_eligibility(user, equipment)
         
+        # Tylko dzienny okres rozliczenia
         pricing = self.calculate_rental_price(
             equipment,
             start_date,
             end_date,
-            rental_data.quantity,
-            rental_data.rental_period
+            rental_data.quantity
         )
         
         new_rental = Rental(
@@ -193,7 +182,6 @@ class RentalService:
             start_date=start_date,
             end_date=end_date,
             quantity=rental_data.quantity,
-            rental_period=rental_data.rental_period,
             unit_price=pricing["unit_price"],
             total_price=pricing["total_price"],
             deposit_amount=pricing["deposit_amount"],
@@ -221,8 +209,7 @@ class RentalService:
         equipment_id: int, 
         start_date: datetime, 
         end_date: datetime, 
-        quantity: int, 
-        rental_period: RentalPeriod
+        quantity: int
     ) -> dict:
         start_date = self._normalize_datetime(start_date)
         end_date = self._normalize_datetime(end_date)
@@ -233,8 +220,9 @@ class RentalService:
             equipment_id, quantity, start_date, end_date
         )
         
+        # Tylko dzienny okres rozliczenia
         pricing = self.calculate_rental_price(
-            equipment, start_date, end_date, quantity, rental_period
+            equipment, start_date, end_date, quantity
         )
         
         return {

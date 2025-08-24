@@ -1,11 +1,11 @@
 from .user import User, UserRole, AuthProvider
 from .equipment import Equipment, EquipmentCategory, EquipmentStatus
-from .rental import Rental, RentalStatus, RentalPeriod
+from .rental import Rental, RentalStatus
 from .payment import Payment, PaymentStatus, PaymentMethod, PaymentType
 
 __all__ = [
     "User", "UserRole", "AuthProvider",
     "Equipment", "EquipmentCategory", "EquipmentStatus", 
-    "Rental", "RentalStatus", "RentalPeriod",
+    "Rental", "RentalStatus",
     "Payment", "PaymentStatus", "PaymentMethod", "PaymentType"
 ]

@@ -13,11 +13,6 @@ class RentalStatus(str, Enum):
     CANCELLED = "cancelled"    # Anulowane
     OVERDUE = "overdue"        # Przeterminowane
 
-class RentalPeriod(str, Enum):
-    DAILY = "daily"
-    WEEKLY = "weekly"
-    MONTHLY = "monthly"
-
 class Rental(Base):
     __tablename__ = "rentals"
     
@@ -27,20 +22,17 @@ class Rental(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     equipment_id = Column(Integer, ForeignKey("equipment.id"), nullable=False)
     
-    # Szczegóły wypożyczenia
+    # Szczegóły wypożyczenia - tylko dzienny okres
     start_date = Column(DateTime, nullable=False)
     end_date = Column(DateTime, nullable=False)
     actual_return_date = Column(DateTime, nullable=True)
     
     quantity = Column(Integer, default=1)
-    rental_period = Column(SQLEnum(RentalPeriod), default=RentalPeriod.DAILY)
     
-    # Koszty
-    unit_price = Column(Numeric(10, 2), nullable=False)  # Cena za jednostkę czasu
+    # Koszty - usunięte opłaty za uszkodzenia i spóźnienia
+    unit_price = Column(Numeric(10, 2), nullable=False)  # Cena za dzień
     total_price = Column(Numeric(10, 2), nullable=False)
     deposit_amount = Column(Numeric(10, 2), default=0)
-    late_fee = Column(Numeric(10, 2), default=0)
-    damage_fee = Column(Numeric(10, 2), default=0)
     
     # Status i notatki
     status = Column(SQLEnum(RentalStatus), default=RentalStatus.PENDING)
@@ -78,8 +70,3 @@ class Rental(Base):
         """Sprawdza czy wypożyczenie jest przeterminowane"""
         return (self.status in [RentalStatus.ACTIVE, RentalStatus.CONFIRMED] 
                 and datetime.now() > self.end_date)
-    
-    @property
-    def final_amount(self):
-        """Oblicza końcową kwotę do zapłaty"""
-        return self.total_price + self.late_fee + self.damage_fee

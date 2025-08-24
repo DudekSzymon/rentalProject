@@ -96,16 +96,12 @@ async def create_equipment(
         category=equipment_data.category,
         brand=equipment_data.brand,
         model=equipment_data.model,
-        daily_rate=equipment_data.daily_rate,
-        weekly_rate=equipment_data.weekly_rate,
-        monthly_rate=equipment_data.monthly_rate,
+        daily_rate=equipment_data.daily_rate,  # Tylko cena dzienna
         weight=equipment_data.weight,
         dimensions=equipment_data.dimensions,
         power_consumption=equipment_data.power_consumption,
         quantity_total=equipment_data.quantity_total,
-        quantity_available=equipment_data.quantity_total,
-        requires_license=equipment_data.requires_license,
-        min_age=equipment_data.min_age
+        quantity_available=equipment_data.quantity_total
     )
     
     db.add(new_equipment)

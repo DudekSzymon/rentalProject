@@ -18,7 +18,6 @@ class EquipmentStatus(str, Enum):
     AVAILABLE = "available"
     RENTED = "rented" 
     MAINTENANCE = "maintenance"
-    DAMAGED = "damaged"
     RETIRED = "retired"
 
 class Equipment(Base):
@@ -31,10 +30,8 @@ class Equipment(Base):
     brand = Column(String(100), nullable=True)
     model = Column(String(100), nullable=True)
     
-    # Ceny wypożyczenia
-    daily_rate = Column(Numeric(10, 2), nullable=False)  # Cena za dzień
-    weekly_rate = Column(Numeric(10, 2), nullable=True)  # Cena za tydzień
-    monthly_rate = Column(Numeric(10, 2), nullable=True) # Cena za miesiąc
+    # Tylko cena dzienna
+    daily_rate = Column(Numeric(10, 2), nullable=False)
     
     # Szczegóły techniczne
     weight = Column(Numeric(8, 2), nullable=True)      # Waga w kg
@@ -49,10 +46,6 @@ class Equipment(Base):
     # Zdjęcia i dokumenty
     image_url = Column(String(500), nullable=True)
     manual_url = Column(String(500), nullable=True)  # Link do instrukcji
-    
-    # Wymagania bezpieczeństwa
-    requires_license = Column(Boolean, default=False)
-    min_age = Column(Integer, default=18)
     
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())

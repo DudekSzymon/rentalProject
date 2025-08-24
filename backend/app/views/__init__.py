@@ -8,7 +8,7 @@ from .equipment_schemas import (
 )
 from .rental_schemas import (
     RentalCreate, RentalUpdate, RentalResponse, RentalSummary,
-    RentalListResponse, RentalStatus, RentalPeriod
+    RentalListResponse, RentalStatus
 )
 from .payment_schemas import (
     PaymentCreate, PaymentResponse, PaymentListResponse,
@@ -27,7 +27,7 @@ __all__ = [
     
     # Rental schemas
     "RentalCreate", "RentalUpdate", "RentalResponse", "RentalSummary",
-    "RentalListResponse", "RentalStatus", "RentalPeriod",
+    "RentalListResponse", "RentalStatus",
     
     # Payment schemas
     "PaymentCreate", "PaymentResponse", "PaymentListResponse",

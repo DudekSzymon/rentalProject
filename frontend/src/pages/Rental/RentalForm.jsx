@@ -66,7 +66,7 @@ const RentalForm = () => {
   const checkAvailabilityAndPricing = async () => {
     try {
       // Dodaj czas do dat
-      const startDateTime = new Date(startDate + "T12:00:00").toISOString(); // Południe
+      const startDateTime = new Date(startDate + "T12:00:00").toISOString();
       const endDateTime = new Date(endDate + "T12:00:00").toISOString();
 
       // Sprawdź dostępność
@@ -83,14 +83,13 @@ const RentalForm = () => {
       const availabilityData = availabilityResponse.data;
       setAvailability(availabilityData);
 
-      // Jeśli dostępne, sprawdź cenę
+      // Jeśli dostępne, sprawdź cenę (usunięto rental_period - zawsze dzienny)
       if (availabilityData.available) {
         const pricingParams = {
           equipment_id: equipment.id,
           start_date: startDateTime,
           end_date: endDateTime,
           quantity: quantity,
-          rental_period: "daily", // Zawsze dzienny
         };
 
         const pricingResponse = await rentalsAPI.getPricingPreview(
@@ -123,7 +122,6 @@ const RentalForm = () => {
         start_date: new Date(startDate + "T12:00:00").toISOString(),
         end_date: new Date(endDate + "T12:00:00").toISOString(),
         quantity: quantity,
-        rental_period: "daily", // Zawsze dzienny
         notes: notes,
       });
 
@@ -150,7 +148,6 @@ const RentalForm = () => {
   if (!equipment) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 relative overflow-hidden">
-        {/* Subtle Background Elements */}
         <div className="absolute inset-0">
           <div className="absolute top-20 left-20 w-72 h-72 bg-blue-500/5 rounded-full blur-3xl"></div>
           <div className="absolute bottom-20 right-20 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl"></div>
@@ -168,7 +165,7 @@ const RentalForm = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 relative overflow-hidden">
-      {/* Subtle Background Elements */}
+      {/* Background Elements */}
       <div className="absolute inset-0">
         <div className="absolute top-20 left-20 w-72 h-72 bg-blue-500/5 rounded-full blur-3xl"></div>
         <div className="absolute bottom-20 right-20 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl"></div>
@@ -222,13 +219,11 @@ const RentalForm = () => {
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-8">
-
-
                   {/* Daty */}
                   <div>
                     <h3 className="text-gray-900 font-semibold mb-4 flex items-center">
                       <Calendar className="w-4 h-4 mr-2" />
-                      Okres wypożyczenia
+                      Okres wypożyczenia (rozliczenie dzienne)
                     </h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>

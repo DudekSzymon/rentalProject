@@ -18,7 +18,6 @@ class EquipmentStatus(str, Enum):
     AVAILABLE = "available"
     RENTED = "rented"
     MAINTENANCE = "maintenance"
-    DAMAGED = "damaged"
     RETIRED = "retired"
 
 # Schema do tworzenia sprzętu (admin)
@@ -28,15 +27,11 @@ class EquipmentCreate(BaseModel):
     category: EquipmentCategory
     brand: Optional[str] = None
     model: Optional[str] = None
-    daily_rate: Decimal
-    weekly_rate: Optional[Decimal] = None
-    monthly_rate: Optional[Decimal] = None
+    daily_rate: Decimal  # Tylko cena dzienna
     weight: Optional[Decimal] = None
     dimensions: Optional[str] = None
     power_consumption: Optional[str] = None
     quantity_total: int = 1
-    requires_license: bool = False
-    min_age: int = 18
     
     @validator('daily_rate')
     def validate_daily_rate(cls, v):
@@ -51,9 +46,7 @@ class EquipmentUpdate(BaseModel):
     category: Optional[EquipmentCategory] = None
     brand: Optional[str] = None
     model: Optional[str] = None
-    daily_rate: Optional[Decimal] = None
-    weekly_rate: Optional[Decimal] = None
-    monthly_rate: Optional[Decimal] = None
+    daily_rate: Optional[Decimal] = None  # Tylko cena dzienna
     status: Optional[EquipmentStatus] = None
     quantity_total: Optional[int] = None
     quantity_available: Optional[int] = None
@@ -66,9 +59,7 @@ class EquipmentResponse(BaseModel):
     category: EquipmentCategory
     brand: Optional[str]
     model: Optional[str]
-    daily_rate: Decimal
-    weekly_rate: Optional[Decimal]
-    monthly_rate: Optional[Decimal]
+    daily_rate: Decimal  # Tylko cena dzienna
     weight: Optional[Decimal]
     dimensions: Optional[str]
     power_consumption: Optional[str]
@@ -76,8 +67,6 @@ class EquipmentResponse(BaseModel):
     quantity_total: int
     quantity_available: int
     image_url: Optional[str]
-    requires_license: bool
-    min_age: int
     is_available: bool  # Property z modelu
     created_at: datetime
     
