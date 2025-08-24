@@ -33,19 +33,13 @@ class Equipment(Base):
     # Tylko cena dzienna
     daily_rate = Column(Numeric(10, 2), nullable=False)
     
-    # Szczegóły techniczne
-    weight = Column(Numeric(8, 2), nullable=True)      # Waga w kg
-    dimensions = Column(String(100), nullable=True)     # Wymiary
-    power_consumption = Column(String(50), nullable=True) # Pobór mocy
-    
     # Status i dostępność
     status = Column(SQLEnum(EquipmentStatus), default=EquipmentStatus.AVAILABLE)
     quantity_total = Column(Integer, default=1)
     quantity_available = Column(Integer, default=1)
     
-    # Zdjęcia i dokumenty
+    # Tylko zdjęcie - usunięto manual_url
     image_url = Column(String(500), nullable=True)
-    manual_url = Column(String(500), nullable=True)  # Link do instrukcji
     
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())

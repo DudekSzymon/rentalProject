@@ -20,7 +20,7 @@ class EquipmentStatus(str, Enum):
     MAINTENANCE = "maintenance"
     RETIRED = "retired"
 
-# Schema do tworzenia sprzętu (admin)
+# Schema do tworzenia sprzętu (admin) - usunięte szczegóły techniczne
 class EquipmentCreate(BaseModel):
     name: str
     description: Optional[str] = None
@@ -28,9 +28,6 @@ class EquipmentCreate(BaseModel):
     brand: Optional[str] = None
     model: Optional[str] = None
     daily_rate: Decimal  # Tylko cena dzienna
-    weight: Optional[Decimal] = None
-    dimensions: Optional[str] = None
-    power_consumption: Optional[str] = None
     quantity_total: int = 1
     
     @validator('daily_rate')
@@ -39,7 +36,7 @@ class EquipmentCreate(BaseModel):
             raise ValueError('Cena dzienna musi być większa od 0')
         return v
 
-# Schema do aktualizacji sprzętu
+# Schema do aktualizacji sprzętu - usunięte szczegóły techniczne
 class EquipmentUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
@@ -51,7 +48,7 @@ class EquipmentUpdate(BaseModel):
     quantity_total: Optional[int] = None
     quantity_available: Optional[int] = None
 
-# Schema odpowiedzi
+# Schema odpowiedzi - usunięte szczegóły techniczne
 class EquipmentResponse(BaseModel):
     id: int
     name: str
@@ -60,13 +57,10 @@ class EquipmentResponse(BaseModel):
     brand: Optional[str]
     model: Optional[str]
     daily_rate: Decimal  # Tylko cena dzienna
-    weight: Optional[Decimal]
-    dimensions: Optional[str]
-    power_consumption: Optional[str]
     status: EquipmentStatus
     quantity_total: int
     quantity_available: int
-    image_url: Optional[str]
+    image_url: Optional[str]  # Tylko zdjęcie
     is_available: bool  # Property z modelu
     created_at: datetime
     

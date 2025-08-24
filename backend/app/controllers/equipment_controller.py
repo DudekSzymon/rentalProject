@@ -97,11 +97,9 @@ async def create_equipment(
         brand=equipment_data.brand,
         model=equipment_data.model,
         daily_rate=equipment_data.daily_rate,  # Tylko cena dzienna
-        weight=equipment_data.weight,
-        dimensions=equipment_data.dimensions,
-        power_consumption=equipment_data.power_consumption,
         quantity_total=equipment_data.quantity_total,
         quantity_available=equipment_data.quantity_total
+        # Usunięto szczegóły techniczne: weight, dimensions, power_consumption
     )
     
     db.add(new_equipment)
