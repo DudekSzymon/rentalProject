@@ -9,163 +9,21 @@ import {
   CardTitle,
 } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
-import { paymentsAPI, adminAPI, equipmentAPI } from "../../utils/api";
+import { paymentsAPI, adminAPI } from "../../utils/api";
 import {
-  LayoutDashboard,
-  Package,
   Users,
-  Calendar,
   CreditCard,
-  BarChart3,
-  Settings,
   LogOut,
   Menu,
   X,
-  TrendingUp,
-  AlertCircle,
   CheckCircle,
   Clock,
-  Edit,
-  Trash2,
-  Plus,
-  Search,
-  Filter,
-  Eye,
+  Shield,
   UserCheck,
   UserX,
-  Ban,
-  Shield,
 } from "lucide-react";
 
-// Komponent dla zakładki Overview
-const OverviewTab = ({ stats, onTabChange }) => (
-  <div className="space-y-6 md:space-y-8">
-    {/* Stats Cards */}
-    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
-      <Card className="bg-white shadow-sm border-0 rounded-2xl hover:shadow-md transition-shadow duration-200">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-          <CardTitle className="text-sm font-medium text-gray-600">
-            Aktywne wypożyczenia
-          </CardTitle>
-          <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
-            <Calendar className="h-5 w-5 text-blue-500" />
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="text-3xl font-bold text-gray-900 mb-1">
-            {stats.rentals?.active || 0}
-          </div>
-          <p className="text-sm text-gray-500">
-            z {stats.rentals?.total || 0} wszystkich
-          </p>
-        </CardContent>
-      </Card>
-
-      <Card className="bg-white shadow-sm border-0 rounded-2xl hover:shadow-md transition-shadow duration-200">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-          <CardTitle className="text-sm font-medium text-gray-600">
-            Oczekujące płatności
-          </CardTitle>
-          <div className="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center">
-            <Clock className="h-5 w-5 text-orange-500" />
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="text-3xl font-bold text-gray-900 mb-1">
-            {stats.payments?.pending || 0}
-          </div>
-          <p className="text-sm text-gray-500">Wymagają zatwierdzenia</p>
-        </CardContent>
-      </Card>
-
-      <Card className="bg-white shadow-sm border-0 rounded-2xl hover:shadow-md transition-shadow duration-200">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-          <CardTitle className="text-sm font-medium text-gray-600">
-            Zarejestrowani użytkownicy
-          </CardTitle>
-          <div className="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center">
-            <Users className="h-5 w-5 text-green-500" />
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="text-3xl font-bold text-gray-900 mb-1">
-            {stats.users?.total || 0}
-          </div>
-          <p className="text-sm text-gray-500">
-            +{stats.users?.new_this_month || 0} w tym miesiącu
-          </p>
-        </CardContent>
-      </Card>
-
-      <Card className="bg-white shadow-sm border-0 rounded-2xl hover:shadow-md transition-shadow duration-200">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-          <CardTitle className="text-sm font-medium text-gray-600">
-            Sprzęt w bazie
-          </CardTitle>
-          <div className="w-10 h-10 bg-purple-50 rounded-xl flex items-center justify-center">
-            <Package className="h-5 w-5 text-purple-500" />
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="text-3xl font-bold text-gray-900 mb-1">
-            {stats.equipment?.total || 0}
-          </div>
-          <p className="text-sm text-gray-500">
-            {stats.equipment?.utilization_rate || 0}% wykorzystania
-          </p>
-        </CardContent>
-      </Card>
-    </div>
-
-    {/* Quick Actions */}
-    <Card className="bg-white shadow-sm border-0 rounded-2xl">
-      <CardHeader className="pb-6">
-        <CardTitle className="text-gray-900 text-xl font-semibold">
-          Szybkie akcje
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          <Button
-            onClick={() => onTabChange("payments")}
-            className="h-20 flex flex-col items-center justify-center space-y-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl border-0 shadow-sm hover:shadow-md transition-all duration-200 relative"
-          >
-            <div className="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center">
-              <CreditCard className="w-5 h-5 text-orange-500" />
-            </div>
-            <span className="text-sm font-medium">Zatwierdź płatności</span>
-            {(stats.payments?.pending || 0) > 0 && (
-              <span className="absolute top-2 right-2 text-xs bg-orange-500 text-white px-2 py-1 rounded-full">
-                {stats.payments.pending}
-              </span>
-            )}
-          </Button>
-          <Button
-            onClick={() => onTabChange("users")}
-            className="h-20 flex flex-col items-center justify-center space-y-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl border-0 shadow-sm hover:shadow-md transition-all duration-200"
-          >
-            <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
-              <Users className="w-5 h-5 text-blue-500" />
-            </div>
-            <span className="text-sm font-medium">Zarządzaj użytkownikami</span>
-          </Button>
-          <Button
-            onClick={() => onTabChange("reports")}
-            className="h-20 flex flex-col items-center justify-center space-y-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl border-0 shadow-sm hover:shadow-md transition-all duration-200"
-          >
-            <div className="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center">
-              <BarChart3 className="w-5 h-5 text-green-500" />
-            </div>
-            <span className="text-sm font-medium">Raporty przychodów</span>
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  </div>
-);
-
 // Komponent dla zatwierdzania płatności
-// Komponent dla zatwierdzania płatności - ZAKTUALIZOWANY
 const PaymentsTab = ({ onStatsRefresh }) => {
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -207,7 +65,6 @@ const PaymentsTab = ({ onStatsRefresh }) => {
     }
   };
 
-  // NOWA FUNKCJA - anulowanie płatności
   const cancelPayment = async (paymentId) => {
     if (!confirm("Czy na pewno chcesz anulować tę płatność?")) {
       return;
@@ -273,7 +130,6 @@ const PaymentsTab = ({ onStatsRefresh }) => {
                       </span>
                     </div>
                   </div>
-                  {/* ZAKTUALIZOWANE PRZYCISKI */}
                   <div className="flex items-center space-x-3 w-full sm:w-auto">
                     <Button
                       onClick={() => approvePayment(payment.id)}
@@ -299,6 +155,7 @@ const PaymentsTab = ({ onStatsRefresh }) => {
     </div>
   );
 };
+
 // Komponent dla zarządzania użytkownikami
 const UsersTab = () => {
   const [users, setUsers] = useState([]);
@@ -310,6 +167,7 @@ const UsersTab = () => {
   }, [searchTerm]);
 
   const fetchUsers = async () => {
+    setLoading(true);
     try {
       const params = {
         page: 1,
@@ -318,9 +176,11 @@ const UsersTab = () => {
       };
       const response = await adminAPI.getUsers(params);
       const data = response.data;
+      
       setUsers(data || []);
     } catch (error) {
       console.error("Błąd pobierania użytkowników:", error);
+      alert("Błąd pobierania użytkowników: " + (error.message || "Nieznany błąd"));
     } finally {
       setLoading(false);
     }
@@ -332,11 +192,11 @@ const UsersTab = () => {
     try {
       await adminAPI.blockUser(userId);
       alert("Użytkownik zablokowany pomyślnie!");
+      // Odśwież listę użytkowników żeby zobaczyć aktualny status
       fetchUsers();
     } catch (error) {
-      alert(
-        "Błąd blokowania użytkownika: " + (error.message || "Nieznany błąd")
-      );
+      console.error("Błąd blokowania użytkownika:", error);
+      alert("Błąd blokowania użytkownika: " + (error.message || "Nieznany błąd"));
     }
   };
 
@@ -346,11 +206,11 @@ const UsersTab = () => {
     try {
       await adminAPI.unblockUser(userId);
       alert("Użytkownik odblokowany pomyślnie!");
+      // Odśwież listę użytkowników żeby zobaczyć aktualny status
       fetchUsers();
     } catch (error) {
-      alert(
-        "Błąd odblokowania użytkownika: " + (error.message || "Nieznany błąd")
-      );
+      console.error("Błąd odblokowania użytkownika:", error);
+      alert("Błąd odblokowania użytkownika: " + (error.message || "Nieznany błąd"));
     }
   };
 
@@ -462,233 +322,30 @@ const UsersTab = () => {
   );
 };
 
-// Komponent raportów przychodów
-const ReportsTab = () => {
-  const [report, setReport] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-
-  useEffect(() => {
-    const now = new Date();
-    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-    setStartDate(firstDay.toISOString().split("T")[0]);
-    setEndDate(now.toISOString().split("T")[0]);
-  }, []);
-
-  const fetchReport = async () => {
-    if (!startDate || !endDate) {
-      alert("Podaj daty początkową i końcową");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const params = {};
-      if (startDate) params.start_date = startDate + "T00:00:00";
-      if (endDate) params.end_date = endDate + "T23:59:59";
-
-      const response = await adminAPI.getRevenueReport(params);
-      setReport(response.data);
-    } catch (error) {
-      console.error("Błąd pobierania raportu:", error);
-      alert("Błąd pobierania raportu: " + (error.message || "Nieznany błąd"));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="space-y-6">
-      {/* Filtry dat */}
-      <Card className="bg-white shadow-sm border-0 rounded-2xl">
-        <CardHeader className="pb-6">
-          <CardTitle className="text-gray-900 text-xl font-semibold">
-            Raport przychodów
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-end">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Data od
-              </label>
-              <Input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="bg-gray-50 border-0 rounded-xl h-12 text-gray-900 focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all duration-200"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Data do
-              </label>
-              <Input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="bg-gray-50 border-0 rounded-xl h-12 text-gray-900 focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all duration-200"
-              />
-            </div>
-            <div>
-              <Button
-                onClick={fetchReport}
-                disabled={loading}
-                className="w-full bg-blue-500 hover:bg-blue-600 text-white rounded-xl border-0 shadow-sm hover:shadow-md transition-all duration-200 h-12"
-              >
-                {loading ? (
-                  <>
-                    <Clock className="w-4 h-4 mr-2 animate-spin" />
-                    Generowanie...
-                  </>
-                ) : (
-                  "Wygeneruj raport"
-                )}
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Wyniki raportu */}
-      {report && (
-        <>
-          {/* Podsumowanie */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card className="bg-white shadow-sm border-0 rounded-2xl">
-              <CardContent className="pt-6">
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-green-600 mb-2">
-                    {report.summary?.total_revenue?.toFixed(2) || 0} zł
-                  </div>
-                  <p className="text-gray-600 text-sm">Łączne przychody</p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="bg-white shadow-sm border-0 rounded-2xl">
-              <CardContent className="pt-6">
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-blue-600 mb-2">
-                    {report.summary?.total_payments || 0}
-                  </div>
-                  <p className="text-gray-600 text-sm">Liczba płatności</p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="bg-white shadow-sm border-0 rounded-2xl">
-              <CardContent className="pt-6">
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-purple-600 mb-2">
-                    {report.summary?.average_payment?.toFixed(2) || 0} zł
-                  </div>
-                  <p className="text-gray-600 text-sm">Średnia płatność</p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Metody płatności */}
-          {report.payment_methods && report.payment_methods.length > 0 && (
-            <Card className="bg-white shadow-sm border-0 rounded-2xl">
-              <CardHeader className="pb-6">
-                <CardTitle className="text-gray-900 text-lg font-semibold">
-                  Metody płatności
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {report.payment_methods.map((method, index) => (
-                    <div
-                      key={index}
-                      className="flex justify-between items-center p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors duration-200"
-                    >
-                      <div>
-                        <h4 className="font-medium text-gray-900">
-                          {method.method}
-                        </h4>
-                        <p className="text-sm text-gray-600">
-                          {method.count} płatności
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <div className="font-bold text-green-600">
-                          {method.amount?.toFixed(2)} zł
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          {method.percentage}%
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Top sprzęt */}
-          {report.top_equipment && report.top_equipment.length > 0 && (
-            <Card className="bg-white shadow-sm border-0 rounded-2xl">
-              <CardHeader className="pb-6">
-                <CardTitle className="text-gray-900 text-lg font-semibold">
-                  Najpopularniejszy sprzęt
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {report.top_equipment.map((equipment, index) => (
-                    <div
-                      key={index}
-                      className="flex justify-between items-center p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors duration-200"
-                    >
-                      <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                          <span className="text-blue-600 font-bold text-sm">
-                            #{index + 1}
-                          </span>
-                        </div>
-                        <div>
-                          <h4 className="font-medium text-gray-900">
-                            {equipment.name}
-                          </h4>
-                          <p className="text-sm text-gray-600">
-                            {equipment.rental_count} wypożyczeń
-                          </p>
-                        </div>
-                      </div>
-                      <div className="font-bold text-green-600">
-                        {equipment.revenue?.toFixed(2) || 0} zł
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </>
-      )}
-    </div>
-  );
-};
-
 // Główny komponent AdminDashboard
 const AdminDashboard = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState("payments");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isNarrow, setIsNarrow] = useState(false);
-  const [stats, setStats] = useState({});
-  const [loading, setLoading] = useState(true);
+  const [pendingPayments, setPendingPayments] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (!user || user.role !== "admin") {
-      alert("Brak uprawnień administratora!");
-      navigate("/");
-      return;
-    }
-    fetchDashboardStats();
+    // Czekaj na załadowanie kontekstu auth
+    const timer = setTimeout(() => {
+      if (!user || user.role !== "admin") {
+        alert("Brak uprawnień administratora!");
+        navigate("/");
+        return;
+      }
+      fetchPendingPaymentsCount();
+      setIsLoading(false);
+    }, 100); // Krótkie opóźnienie na załadowanie kontekstu
+
+    return () => clearTimeout(timer);
   }, [user, navigate]);
 
   useEffect(() => {
@@ -712,14 +369,13 @@ const AdminDashboard = () => {
     return () => window.removeEventListener("resize", checkScreenSize);
   }, []);
 
-  const fetchDashboardStats = async () => {
+  const fetchPendingPaymentsCount = async () => {
     try {
-      const response = await adminAPI.getDashboard();
-      setStats(response.data);
+      const response = await adminAPI.getPendingPayments({ page: 1, size: 1 });
+      const data = response.data;
+      setPendingPayments(data.total || 0);
     } catch (error) {
-      console.error("Błąd pobierania statystyk:", error);
-    } finally {
-      setLoading(false);
+      console.error("Błąd pobierania liczby płatności:", error);
     }
   };
 
@@ -736,18 +392,17 @@ const AdminDashboard = () => {
   };
 
   const menuItems = [
-    { id: "overview", label: "Przegląd", icon: LayoutDashboard },
     { id: "payments", label: "Płatności", icon: CreditCard },
     { id: "users", label: "Użytkownicy", icon: Users },
-    { id: "reports", label: "Raporty", icon: BarChart3 },
   ];
 
-  if (loading) {
+  // Pokaż loading podczas sprawdzania uprawnień
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-gray-900">Ładowanie dashboard...</p>
+          <p className="text-gray-900">Sprawdzanie uprawnień...</p>
         </div>
       </div>
     );
@@ -822,10 +477,10 @@ const AdminDashboard = () => {
                   <span className="text-sm">{item.label}</span>
                 )}
                 {item.id === "payments" &&
-                  (stats.payments?.pending || 0) > 0 &&
+                  pendingPayments > 0 &&
                   (sidebarOpen || (!isMobile && !isNarrow)) && (
                     <span className="ml-auto bg-orange-500 text-white text-xs px-2 py-1 rounded-full">
-                      {stats.payments.pending}
+                      {pendingPayments}
                     </span>
                   )}
               </button>
@@ -881,7 +536,7 @@ const AdminDashboard = () => {
               <div>
                 <h2 className="text-2xl font-bold text-gray-900">
                   {menuItems.find((item) => item.id === activeTab)?.label ||
-                    "Dashboard"}
+                    "Admin Panel"}
                 </h2>
                 <p className="text-gray-600 text-sm hidden sm:block">
                   Panel administracyjny wypożyczalni
@@ -905,14 +560,10 @@ const AdminDashboard = () => {
 
         {/* Content */}
         <div className="p-6">
-          {activeTab === "overview" && (
-            <OverviewTab stats={stats} onTabChange={setActiveTab} />
-          )}
           {activeTab === "payments" && (
-            <PaymentsTab onStatsRefresh={fetchDashboardStats} />
+            <PaymentsTab onStatsRefresh={fetchPendingPaymentsCount} />
           )}
           {activeTab === "users" && <UsersTab />}
-          {activeTab === "reports" && <ReportsTab />}
         </div>
       </div>
     </div>

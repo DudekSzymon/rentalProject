@@ -43,6 +43,7 @@ class UserResponse(BaseModel):
     role: UserRole              # Rola użytkownika w systemie
     auth_provider: AuthProvider # Sposób uwierzytelniania (local/google)
     is_verified: bool           # Czy email został zweryfikowany
+    is_blocked: bool            # Czy użytkownik jest zablokowany
     created_at: datetime        # Data utworzenia konta
     
     # Konfiguracja dla SQLAlchemy - pozwala na konwersję z ORM
