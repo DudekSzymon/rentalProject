@@ -146,7 +146,7 @@ async def confirm_rental(
     
     try:
         RentalService(db).check_equipment_availability(
-            rental.equipment_id, rental.quantity, rental.start_date, rental.end_date, exclude_rental_id=rental_id
+            rental.equipment_id, rental.quantity, rental.start_date, rental.end_date
         )
     except HTTPException as e:
         raise HTTPException(
@@ -217,43 +217,6 @@ async def get_rental(
     rental = _get_rental_or_404(rental_id, db)
     _check_rental_access(rental, current_user)
     return _enrich_rental_response(rental, db)
-
-@router.put("/{rental_id}", response_model=RentalResponse)
-async def update_rental(
-    rental_id: int,
-    rental_data: RentalUpdate,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    rental = _get_rental_or_404(rental_id, db)
-    is_admin = current_user.role == "admin"
-    
-    if rental.user_id != current_user.id and not is_admin:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Brak uprawnień do edycji tego wypożyczenia")
-    
-    if rental.user_id == current_user.id and not is_admin:
-        if rental.status != RentalStatus.PENDING:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Można edytować tylko oczekujące wypożyczenia")
-        
-        allowed_fields = {"notes", "pickup_address", "return_address"}
-        if not set(rental_data.dict(exclude_unset=True).keys()).issubset(allowed_fields):
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Można edytować tylko notatki i adresy")
-    
-    for field, value in rental_data.dict(exclude_unset=True).items():
-        setattr(rental, field, value)
-    
-    if rental_data.status:
-        equipment = _get_equipment(rental.equipment_id, db)
-        
-        if rental_data.status == RentalStatus.CONFIRMED and rental.status == RentalStatus.PENDING:
-            equipment.quantity_available -= rental.quantity
-        elif rental_data.status in [RentalStatus.COMPLETED, RentalStatus.CANCELLED] and rental.status in [RentalStatus.CONFIRMED, RentalStatus.ACTIVE]:
-            equipment.quantity_available += rental.quantity
-    
-    db.commit()
-    db.refresh(rental)
-    
-    return RentalResponse.from_orm(rental)
 
 @router.delete("/{rental_id}")
 async def cancel_rental(

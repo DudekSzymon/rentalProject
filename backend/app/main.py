@@ -18,21 +18,6 @@ app = FastAPI(
     version="1.0.0",
     description="System wypożyczalni z Google OAuth i płatnościami Stripe"
 )
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-# Middleware dla Google OAuth CORS
-@app.middleware("http")
-async def add_cors_headers(request: Request, call_next):
-    response = await call_next(request)
-    response.headers["Cross-Origin-Opener-Policy"] = "same-origin-allow-popups"
-    response.headers["Cross-Origin-Embedder-Policy"] = "unsafe-none"
-    return response
-
 # Dodanie CORS
 add_cors_middleware(app)
 

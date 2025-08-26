@@ -17,7 +17,7 @@ class RentalService:
     
     def _normalize_datetime(self, dt: datetime) -> datetime:
         return dt.replace(tzinfo=None) if hasattr(dt, 'tzinfo') and dt.tzinfo else dt
-    
+
     def validate_rental_dates(self, start_date: datetime, end_date: datetime) -> None:
         now = datetime.now()
         
@@ -52,8 +52,7 @@ class RentalService:
         equipment_id: int, 
         quantity: int, 
         start_date: datetime, 
-        end_date: datetime,
-        exclude_rental_id: Optional[int] = None
+        end_date: datetime
     ) -> Equipment:
         equipment = self.db.query(Equipment).filter(
             Equipment.id == equipment_id,
@@ -66,7 +65,7 @@ class RentalService:
                 detail="Sprzęt nie znaleziony"
             )
         
-        # Sprawdzamy tylko dostępny i wynajęty (usunięto uszkodzony)
+        # Sprawdzamy tylko dostępny i wynajęty 
         if equipment.status not in [EquipmentStatus.AVAILABLE, EquipmentStatus.RENTED]:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -92,9 +91,6 @@ class RentalService:
             )
         )
         
-        if exclude_rental_id:
-            conflicting_query = conflicting_query.filter(Rental.id != exclude_rental_id)
-        
         conflicting_rentals = conflicting_query.all()
         occupied_quantity = sum(rental.quantity for rental in conflicting_rentals)
         available_quantity = equipment.quantity_total - occupied_quantity
@@ -118,14 +114,12 @@ class RentalService:
         
         # Tylko rozliczenie dzienne
         unit_price = equipment.daily_rate
-        billable_units = duration_days
         
-        subtotal = unit_price * billable_units * quantity
+        subtotal = unit_price * duration_days * quantity
         deposit = unit_price * Decimal('0.2') * quantity
         
         return {
             "unit_price": unit_price,
-            "billable_units": billable_units,
             "quantity": quantity,
             "subtotal": subtotal,
             "deposit_amount": deposit,
@@ -134,11 +128,6 @@ class RentalService:
         }
     
     def validate_user_eligibility(self, user: User, equipment: Equipment) -> None:
-        if user.is_blocked:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Konto użytkownika zostało zablokowane"
-            )
         
         active_rentals = self.db.query(Rental).filter(
             and_(
@@ -147,10 +136,10 @@ class RentalService:
             )
         ).count()
         
-        if active_rentals >= 100:
+        if active_rentals >= 10:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Maksymalna liczba aktywnych wypożyczeń: 100"
+                detail="Maksymalna liczba aktywnych wypożyczeń: 10"
             )
     
     def create_rental(self, rental_data: RentalCreate, user: User) -> Rental:
