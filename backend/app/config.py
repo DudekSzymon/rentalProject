@@ -10,7 +10,7 @@ class Settings:
     
     # Czasy wygaśnięcia tokentów
     ACCESS_TOKEN_EXPIRE_SECONDS: int = config("ACCESS_TOKEN_EXPIRE_SECONDS", default=30)  # 30 sekund
-    REFRESH_TOKEN_EXPIRE_MINUTES: int = config("REFRESH_TOKEN_EXPIRE_MINUTES", default=15)  # 15 minut
+    REFRESH_TOKEN_EXPIRE_MINUTES: int = config("REFRESH_TOKEN_EXPIRE_MINUTES", default=60)  # 15 minut
     
     GOOGLE_CLIENT_ID: str = config("GOOGLE_CLIENT_ID", default="").strip()
     GOOGLE_CLIENT_SECRET: str = config("GOOGLE_CLIENT_SECRET", default="").strip()

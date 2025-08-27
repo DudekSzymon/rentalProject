@@ -276,9 +276,6 @@ const RentalForm = () => {
                         required
                         className="h-12 px-4 py-3 bg-gray-50 border-0 rounded-xl text-gray-900 focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all duration-200"
                       />
-                      <p className="text-sm text-gray-500 mt-1">
-                        Dostępne: {equipment.quantity_available} szt.
-                      </p>
                     </div>
                   </div>
 
@@ -429,12 +426,6 @@ const RentalForm = () => {
                         <span>Cena za dzień:</span>
                         <span className="text-gray-900">
                           {pricing.unit_price} zł
-                        </span>
-                      </div>
-                      <div className="flex justify-between text-gray-600">
-                        <span>Liczba dni:</span>
-                        <span className="text-gray-900">
-                          {pricing.billable_units}
                         </span>
                       </div>
                       <div className="flex justify-between text-gray-600">

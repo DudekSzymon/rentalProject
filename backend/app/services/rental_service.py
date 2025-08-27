@@ -20,27 +20,9 @@ class RentalService:
 
     def validate_rental_dates(self, start_date: datetime, end_date: datetime) -> None:
         now = datetime.now()
-        
-        if start_date.date() < now.date():
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Data rozpoczęcia nie może być w przeszłości"
-            )
-        
-        if end_date <= start_date:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Data zakończenia musi być późniejsza niż data rozpoczęcia"
-            )
-        
+
         duration_days = (end_date - start_date).days
-        
-        if duration_days < 1:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Minimalna długość wypożyczenia to 1 dzień"
-            )
-        
+
         if duration_days > 90:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -58,20 +40,7 @@ class RentalService:
             Equipment.id == equipment_id,
             Equipment.is_active == True
         ).first()
-        
-        if not equipment:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Sprzęt nie znaleziony"
-            )
-        
-        # Sprawdzamy tylko dostępny i wynajęty 
-        if equipment.status not in [EquipmentStatus.AVAILABLE, EquipmentStatus.RENTED]:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Sprzęt jest w statusie: {equipment.status}"
-            )
-        
+
         if quantity > equipment.quantity_total:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -136,10 +105,10 @@ class RentalService:
             )
         ).count()
         
-        if active_rentals >= 10:
+        if active_rentals >= 100:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Maksymalna liczba aktywnych wypożyczeń: 10"
+                detail="Maksymalna liczba aktywnych wypożyczeń: 100"
             )
     
     def create_rental(self, rental_data: RentalCreate, user: User) -> Rental:
@@ -156,8 +125,7 @@ class RentalService:
         )
         
         self.validate_user_eligibility(user, equipment)
-        
-        # Tylko dzienny okres rozliczenia
+
         pricing = self.calculate_rental_price(
             equipment,
             start_date,
@@ -175,9 +143,6 @@ class RentalService:
             total_price=pricing["total_price"],
             deposit_amount=pricing["deposit_amount"],
             notes=rental_data.notes,
-            pickup_address=rental_data.pickup_address,
-            return_address=rental_data.return_address,
-            delivery_required=rental_data.delivery_required,
             status=RentalStatus.PENDING
         )
         
