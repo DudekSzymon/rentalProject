@@ -29,10 +29,10 @@ class AuthService:
         return hashlib.sha256(token.encode()).hexdigest()
     
     def create_access_token(self, data: dict) -> str:
-        to_encode = data.copy()
-        expire = datetime.utcnow() + timedelta(seconds=self.access_token_expire_seconds)
-        to_encode.update({"exp": expire, "type": "access"})
-        return jwt.encode(to_encode, self.secret_key, algorithm=self.algorithm)
+        to_encode = data.copy() #zapisanie kopi przekazanych danych
+        expire = datetime.utcnow() + timedelta(seconds=self.access_token_expire_seconds) # wyliczanie czasu tokena
+        to_encode.update({"exp": expire, "type": "access"}) #kiedy token traci ważnośc
+        return jwt.encode(to_encode, self.secret_key, algorithm=self.algorithm) #zakodowanie danych w token
     
     def create_refresh_token(self, user_id: int, db: Session) -> str:
         refresh_token = secrets.token_urlsafe(32)

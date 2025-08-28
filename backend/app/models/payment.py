@@ -53,7 +53,7 @@ class Payment(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     processed_at = Column(DateTime, nullable=True)
     
-    # Offline approval (wymaganie z zadania)
+    # Offline approval 
     offline_approved_by = Column(Integer, ForeignKey("users.id"), nullable=True)  # Admin który zatwierdził
     offline_approved_at = Column(DateTime, nullable=True)
     offline_notes = Column(Text, nullable=True)

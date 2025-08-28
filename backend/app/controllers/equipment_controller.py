@@ -9,7 +9,7 @@ from ..database import get_db
 from ..models.user import User
 from ..models.equipment import Equipment, EquipmentStatus, EquipmentCategory
 from ..views.equipment_schemas import (
-    EquipmentCreate, EquipmentUpdate, EquipmentResponse, 
+    EquipmentResponse, 
     EquipmentListResponse, EquipmentCategory, EquipmentStatus
 )
 from ..services.auth_service import auth_service
@@ -83,67 +83,3 @@ async def get_equipment(equipment_id: int, db: Session = Depends(get_db)):
         )
     
     return EquipmentResponse.from_orm(equipment)
-
-@router.post("", response_model=EquipmentResponse)
-async def create_equipment(
-    equipment_data: EquipmentCreate,
-    admin_user: User = Depends(require_admin),
-    db: Session = Depends(get_db)
-):
-    new_equipment = Equipment(
-        name=equipment_data.name,
-        description=equipment_data.description,
-        category=equipment_data.category,
-        brand=equipment_data.brand,
-        model=equipment_data.model,
-        daily_rate=equipment_data.daily_rate,  # Tylko cena dzienna
-        quantity_total=equipment_data.quantity_total,
-        quantity_available=equipment_data.quantity_total
-        # Usunięto szczegóły techniczne: weight, dimensions, power_consumption
-    )
-    
-    db.add(new_equipment)
-    db.commit()
-    db.refresh(new_equipment)
-    
-    return EquipmentResponse.from_orm(new_equipment)
-
-@router.put("/{equipment_id}", response_model=EquipmentResponse)
-async def update_equipment(
-    equipment_id: int,
-    equipment_data: EquipmentUpdate,
-    admin_user: User = Depends(require_admin),
-    db: Session = Depends(get_db)
-):
-    equipment = db.query(Equipment).filter(Equipment.id == equipment_id).first()
-    if not equipment:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Sprzęt nie znaleziony"
-        )
-    
-    for field, value in equipment_data.dict(exclude_unset=True).items():
-        setattr(equipment, field, value)
-    
-    db.commit()
-    db.refresh(equipment)
-    
-    return EquipmentResponse.from_orm(equipment)
-
-@router.delete("/{equipment_id}")
-async def delete_equipment(
-    equipment_id: int,
-    admin_user: User = Depends(require_admin),
-    db: Session = Depends(get_db)
-):
-    equipment = db.query(Equipment).filter(Equipment.id == equipment_id).first()
-    if not equipment:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Sprzęt nie znaleziony"
-        )
-    
-    equipment.is_active = False
-    db.commit()
-    
-    return {"message": "Sprzęt został usunięty"}

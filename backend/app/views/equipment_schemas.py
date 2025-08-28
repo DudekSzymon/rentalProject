@@ -19,35 +19,7 @@ class EquipmentStatus(str, Enum):
     RENTED = "rented"
     MAINTENANCE = "maintenance"
     RETIRED = "retired"
-
-# Schema do tworzenia sprzętu (admin) - usunięte szczegóły techniczne
-class EquipmentCreate(BaseModel):
-    name: str
-    description: Optional[str] = None
-    category: EquipmentCategory
-    brand: Optional[str] = None
-    model: Optional[str] = None
-    daily_rate: Decimal  # Tylko cena dzienna
-    quantity_total: int = 1
     
-    @validator('daily_rate')
-    def validate_daily_rate(cls, v):
-        if v <= 0:
-            raise ValueError('Cena dzienna musi być większa od 0')
-        return v
-
-# Schema do aktualizacji sprzętu - usunięte szczegóły techniczne
-class EquipmentUpdate(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
-    category: Optional[EquipmentCategory] = None
-    brand: Optional[str] = None
-    model: Optional[str] = None
-    daily_rate: Optional[Decimal] = None  # Tylko cena dzienna
-    status: Optional[EquipmentStatus] = None
-    quantity_total: Optional[int] = None
-    quantity_available: Optional[int] = None
-
 # Schema odpowiedzi - usunięte szczegóły techniczne
 class EquipmentResponse(BaseModel):
     id: int

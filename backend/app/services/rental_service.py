@@ -51,13 +51,9 @@ class RentalService:
             and_(
                 Rental.equipment_id == equipment_id,
                 Rental.status.in_([RentalStatus.PENDING, RentalStatus.CONFIRMED, RentalStatus.ACTIVE]),
-                or_(
-                    and_(Rental.start_date <= start_date, Rental.end_date > start_date),
-                    and_(Rental.start_date < end_date, Rental.end_date >= end_date),
-                    and_(Rental.start_date >= start_date, Rental.end_date <= end_date),
-                    and_(Rental.start_date <= start_date, Rental.end_date >= end_date)
+                Rental.start_date < end_date,
+                Rental.end_date > start_date
                 )
-            )
         )
         
         conflicting_rentals = conflicting_query.all()
@@ -86,13 +82,13 @@ class RentalService:
         
         subtotal = unit_price * duration_days * quantity
         deposit = unit_price * Decimal('0.2') * quantity
+        total = subtotal + deposit
         
         return {
             "unit_price": unit_price,
             "quantity": quantity,
-            "subtotal": subtotal,
             "deposit_amount": deposit,
-            "total_price": subtotal,
+            "total_price": total,
             "duration_days": duration_days
         }
     

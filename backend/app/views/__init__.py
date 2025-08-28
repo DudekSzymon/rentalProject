@@ -3,11 +3,11 @@ from .user_schemas import (
     UserRole, AuthProvider
 )
 from .equipment_schemas import (
-    EquipmentCreate, EquipmentUpdate, EquipmentResponse, 
+    EquipmentResponse, 
     EquipmentListResponse, EquipmentCategory, EquipmentStatus
 )
 from .rental_schemas import (
-    RentalCreate, RentalUpdate, RentalResponse, RentalSummary,
+    RentalCreate, RentalResponse, RentalSummary,
     RentalListResponse, RentalStatus
 )
 from .payment_schemas import (
@@ -22,7 +22,7 @@ __all__ = [
     "UserRole", "AuthProvider",
     
     # Equipment schemas
-    "EquipmentCreate", "EquipmentUpdate", "EquipmentResponse", 
+    "EquipmentUpdate", "EquipmentResponse", 
     "EquipmentListResponse", "EquipmentCategory", "EquipmentStatus",
     
     # Rental schemas

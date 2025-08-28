@@ -8,13 +8,13 @@ import math
 
 from ..database import get_db
 from ..models.user import User
-from ..models.equipment import Equipment, EquipmentStatus
+from ..models.equipment import Equipment
 from ..models.rental import Rental, RentalStatus
 from ..models.payment import Payment, PaymentStatus
 from ..views.rental_schemas import (
-    RentalCreate, RentalUpdate, RentalResponse, 
-    RentalSummary, RentalListResponse, RentalPricingPreview,
-    EquipmentAvailabilityCheck, RentalCalendarEvent, EquipmentCalendarResponse
+    RentalCreate, RentalResponse, 
+    RentalSummary, RentalListResponse
+    
 )
 from ..services.auth_service import auth_service
 from ..services.rental_service import RentalService

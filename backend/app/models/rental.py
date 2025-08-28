@@ -29,8 +29,8 @@ class Rental(Base):
     
     quantity = Column(Integer, default=1)
     
-    # Koszty - usunięte opłaty za uszkodzenia i spóźnienia
-    unit_price = Column(Numeric(10, 2), nullable=False)  # Cena za dzień
+    # Koszty
+    unit_price = Column(Numeric(10, 2), nullable=False) 
     total_price = Column(Numeric(10, 2), nullable=False)
     deposit_amount = Column(Numeric(10, 2), default=0)
     

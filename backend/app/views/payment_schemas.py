@@ -111,25 +111,5 @@ class PaymentListResponse(BaseModel):
 class StripeConfigResponse(BaseModel):
     publishable_key: str
     currency: str = "pln"
-
-class PaymentStatusResponse(BaseModel):
-    payment_intent_id: str
-    stripe_status: str
-    our_status: PaymentStatus
-    amount: float
-    currency: str
-    created_at: datetime
-    processed_at: Optional[datetime]
-    failure_reason: Optional[str] = None
-
-class RentalForPaymentResponse(BaseModel):
-    id: int
-    equipment_name: str
-    equipment_id: int
-    start_date: datetime
-    end_date: datetime
-    total_cost: Decimal
-    status: str
-    
     class Config:
         from_attributes = True

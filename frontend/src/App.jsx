@@ -3,7 +3,6 @@ import { AuthProvider } from "./context/AuthContext";
 import Landing from "./pages/Landing/Landing";
 import Login from "./pages/Login/Login";
 import Register from "./pages/Register/Register";
-import Payments from './pages/Payments'; // Stara testowa strona
 import Equipment from './pages/Equipment/Equipment';
 import RentalForm from './pages/Rental/RentalForm';
 import PaymentPage from './pages/Payment/PaymentPage';
@@ -24,9 +23,6 @@ export default function App() {
                 <Route path="/payment" element={<PaymentPage />} />
                 <Route path="/my-rentals" element={<MyRentals />} />
                 <Route path="/admin" element={<AdminDashboard />} />
-                
-                {/* Stara testowa strona płatności - można usunąć */}
-                <Route path="/payments-test" element={<Payments />} />
             </Routes>
         </AuthProvider>
     );

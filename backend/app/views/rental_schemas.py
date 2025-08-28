@@ -34,19 +34,6 @@ class RentalCreate(BaseModel):
         if v <= 0:
             raise ValueError('Ilość musi być większa od 0')
         return v
-
-# Schema do aktualizacji wypożyczenia (admin/user) - usunięto opłaty za uszkodzenia
-class RentalUpdate(BaseModel):
-    start_date: Optional[datetime] = None
-    end_date: Optional[datetime] = None
-    status: Optional[RentalStatus] = None
-    notes: Optional[str] = None
-    admin_notes: Optional[str] = None
-    pickup_address: Optional[str] = None
-    return_address: Optional[str] = None
-    condition_before: Optional[str] = None
-    condition_after: Optional[str] = None
-
 # Schema odpowiedzi - skrócona (dla list)
 class RentalSummary(BaseModel):
     id: int
@@ -121,16 +108,3 @@ class EquipmentAvailabilityCheck(BaseModel):
     requested_quantity: Optional[int]
     error: Optional[str] = None
     conflicts: List[dict] = []
-
-class RentalCalendarEvent(BaseModel):
-    id: int
-    start_date: datetime
-    end_date: datetime
-    quantity: int
-    status: RentalStatus
-    user_id: int
-
-class EquipmentCalendarResponse(BaseModel):
-    equipment: dict
-    period: dict
-    rentals: List[RentalCalendarEvent]

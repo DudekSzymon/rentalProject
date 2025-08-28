@@ -192,7 +192,6 @@ const UsersTab = () => {
     try {
       await adminAPI.blockUser(userId);
       alert("Użytkownik zablokowany pomyślnie!");
-      // Odśwież listę użytkowników żeby zobaczyć aktualny status
       fetchUsers();
     } catch (error) {
       console.error("Błąd blokowania użytkownika:", error);
@@ -206,7 +205,6 @@ const UsersTab = () => {
     try {
       await adminAPI.unblockUser(userId);
       alert("Użytkownik odblokowany pomyślnie!");
-      // Odśwież listę użytkowników żeby zobaczyć aktualny status
       fetchUsers();
     } catch (error) {
       console.error("Błąd odblokowania użytkownika:", error);
@@ -330,20 +328,17 @@ const AdminDashboard = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isNarrow, setIsNarrow] = useState(false);
-  const [pendingPayments, setPendingPayments] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Czekaj na załadowanie kontekstu auth
     const timer = setTimeout(() => {
       if (!user || user.role !== "admin") {
         alert("Brak uprawnień administratora!");
         navigate("/");
         return;
       }
-      fetchPendingPaymentsCount();
       setIsLoading(false);
-    }, 100); // Krótkie opóźnienie na załadowanie kontekstu
+    }, 100);
 
     return () => clearTimeout(timer);
   }, [user, navigate]);
@@ -358,7 +353,7 @@ const AdminDashboard = () => {
       if (isMobileSize) {
         setSidebarOpen(false);
       } else if (isNarrowSize) {
-        setSidebarOpen(false); // Auto-chowaj sidebar na średnich ekranach
+        setSidebarOpen(false);
       } else {
         setSidebarOpen(true);
       }
@@ -368,16 +363,6 @@ const AdminDashboard = () => {
     window.addEventListener("resize", checkScreenSize);
     return () => window.removeEventListener("resize", checkScreenSize);
   }, []);
-
-  const fetchPendingPaymentsCount = async () => {
-    try {
-      const response = await adminAPI.getPendingPayments({ page: 1, size: 1 });
-      const data = response.data;
-      setPendingPayments(data.total || 0);
-    } catch (error) {
-      console.error("Błąd pobierania liczby płatności:", error);
-    }
-  };
 
   const handleLogout = () => {
     logout();
@@ -396,7 +381,6 @@ const AdminDashboard = () => {
     { id: "users", label: "Użytkownicy", icon: Users },
   ];
 
-  // Pokaż loading podczas sprawdzania uprawnień
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
@@ -476,13 +460,6 @@ const AdminDashboard = () => {
                 {(sidebarOpen || (!isMobile && !isNarrow)) && (
                   <span className="text-sm">{item.label}</span>
                 )}
-                {item.id === "payments" &&
-                  pendingPayments > 0 &&
-                  (sidebarOpen || (!isMobile && !isNarrow)) && (
-                    <span className="ml-auto bg-orange-500 text-white text-xs px-2 py-1 rounded-full">
-                      {pendingPayments}
-                    </span>
-                  )}
               </button>
             );
           })}
@@ -560,9 +537,7 @@ const AdminDashboard = () => {
 
         {/* Content */}
         <div className="p-6">
-          {activeTab === "payments" && (
-            <PaymentsTab onStatsRefresh={fetchPendingPaymentsCount} />
-          )}
+          {activeTab === "payments" && <PaymentsTab />}
           {activeTab === "users" && <UsersTab />}
         </div>
       </div>
