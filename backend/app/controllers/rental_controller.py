@@ -172,8 +172,8 @@ async def create_rental(
 
 @router.get("", response_model=RentalListResponse)
 async def get_my_rentals(
-    page: int = Query(1, ge=1),
-    size: int = Query(10, ge=1, le=100),
+    page: int = Query(1),
+    size: int = Query(10),
     status: Optional[RentalStatus] = None,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)

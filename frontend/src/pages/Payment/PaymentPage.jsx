@@ -203,7 +203,7 @@ const PaymentSuccess = ({ rental, equipment, paymentIntent }) => {
             
             <div>
                 <h2 className="text-3xl font-bold text-green-600 mb-4">
-                    Płatność zakończona pomyślnie!
+                    Wypożyczenie zostało zarejestrowane pomyślnie!
                 </h2>
                 <p className="text-gray-600 text-lg">Twoje wypożyczenie zostało potwierdzone</p>
             </div>
@@ -214,21 +214,9 @@ const PaymentSuccess = ({ rental, equipment, paymentIntent }) => {
                     <span className="text-gray-900 font-mono bg-white px-3 py-1 rounded-lg border border-gray-200">#{rental.id}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                    <span className="text-gray-600">ID płatności:</span>
-                    <span className="text-gray-900 font-mono text-sm bg-white px-3 py-1 rounded-lg border border-gray-200">
-                        {paymentIntent?.id?.slice(-8)}
-                    </span>
-                </div>
-                <div className="flex items-center justify-between">
                     <span className="text-gray-600">Kwota:</span>
                     <span className="text-2xl font-bold text-green-600">
                         {rental.total_price} zł
-                    </span>
-                </div>
-                <div className="flex items-center justify-between">
-                    <span className="text-gray-600">Status:</span>
-                    <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm border border-green-200">
-                        ✅ Opłacone
                     </span>
                 </div>
             </div>

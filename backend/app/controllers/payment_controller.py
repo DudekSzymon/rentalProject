@@ -22,7 +22,7 @@ from ..config import settings
 stripe.api_key = settings.STRIPE_SECRET_KEY
 
 router = APIRouter()
-security = HTTPBearer()
+security = HTTPBearer()     #służy do określenia typu uwierzytelniania
 
 def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
@@ -56,44 +56,11 @@ def _get_payment_by_intent_or_404(payment_intent_id: str, user_id: int, db: Sess
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Płatność nie znaleziona")
     return payment
 
-def _check_payment_access(payment: Payment, current_user: User):
-    if payment.user_id != current_user.id and current_user.role != "admin":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Brak uprawnień do tej płatności")
-
 def _confirm_rental_if_pending(rental_id: int, db: Session):
     if rental_id:
         rental = db.query(Rental).filter(Rental.id == rental_id).first()
         if rental and rental.status == RentalStatus.PENDING:
             rental.status = RentalStatus.CONFIRMED
-
-def _paginate_payments(query, page: int, size: int, db: Session):
-    total = query.count()
-    offset = (page - 1) * size
-    payments = query.order_by(Payment.created_at.desc()).offset(offset).limit(size).all()
-    
-    items = [_enrich_payment_response(payment, db) for payment in payments]
-    
-    return PaymentListResponse(
-        items=items,
-        total=total,
-        page=page,
-        size=size,
-        pages=math.ceil(total / size) if total > 0 else 1
-    )
-
-def _enrich_payment_response(payment: Payment, db: Session) -> PaymentResponse:
-    payment_dict = PaymentResponse.from_orm(payment).dict()
-    
-    user = db.query(User).filter(User.id == payment.user_id).first()
-    payment_dict["user_email"] = user.email if user else None
-    
-    if payment.rental_id:
-        rental = db.query(Rental).filter(Rental.id == payment.rental_id).first()
-        if rental:
-            equipment = db.query(Equipment).filter(Equipment.id == rental.equipment_id).first()
-            payment_dict["rental_equipment_name"] = equipment.name if equipment else None
-    
-    return PaymentResponse(**payment_dict)
 
 @router.get("/stripe/config", response_model=StripeConfigResponse)
 async def get_stripe_config():
@@ -357,63 +324,3 @@ async def cancel_payment(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Błąd anulowania płatności: {str(e)}")
-
-@router.get("/admin/all", response_model=PaymentListResponse)
-async def get_all_payments_admin(
-    page: int = Query(1, ge=1),
-    size: int = Query(20, ge=1, le=100),
-    status: Optional[PaymentStatus] = None,
-    payment_method: Optional[PaymentMethod] = None,
-    search: Optional[str] = None,
-    admin_user: User = Depends(require_admin),
-    db: Session = Depends(get_db)
-):
-    query = db.query(Payment)
-    
-    if status:
-        query = query.filter(Payment.status == status)
-    
-    if payment_method:
-        query = query.filter(Payment.payment_method == payment_method)
-    
-    if search:
-        search_term = f"%{search}%"
-        user_subquery = db.query(User.id).filter(func.lower(User.email).contains(search_term.lower()))
-        
-        query = query.filter(
-            or_(
-                Payment.user_id.in_(user_subquery),
-                Payment.id.like(search_term),
-                Payment.external_id.like(search_term) if Payment.external_id else False
-            )
-        )
-    
-    return _paginate_payments(query, page, size, db)
-
-@router.get("", response_model=PaymentListResponse)
-async def get_payments(
-    page: int = Query(1, ge=1),
-    size: int = Query(10, ge=1, le=100),
-    status: Optional[PaymentStatus] = None,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    query = db.query(Payment)
-    
-    if current_user.role != "admin":
-        query = query.filter(Payment.user_id == current_user.id)
-    
-    if status:
-        query = query.filter(Payment.status == status)
-    
-    return _paginate_payments(query, page, size, db)
-
-@router.get("/{payment_id}", response_model=PaymentResponse)
-async def get_payment(
-    payment_id: int,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    payment = _get_payment_or_404(payment_id, db)
-    _check_payment_access(payment, current_user)
-    return PaymentResponse.from_orm(payment)

@@ -29,24 +29,16 @@ def require_admin(current_user: User = Depends(get_current_user)):
 
 @router.get("", response_model=EquipmentListResponse)
 async def get_equipment_list(
-    page: int = Query(1, ge=1),
-    size: int = Query(10, ge=1, le=100),
+    page: int = Query(1),
+    size: int = Query(10),
     category: Optional[EquipmentCategory] = None,
-    status: Optional[EquipmentStatus] = None,
     search: Optional[str] = None,
-    available_only: bool = Query(False),
     db: Session = Depends(get_db)
 ):
     query = db.query(Equipment).filter(Equipment.is_active == True)
     
     if category:
         query = query.filter(Equipment.category == category)
-    
-    if status:
-        query = query.filter(Equipment.status == status)
-    elif available_only:
-        query = query.filter(Equipment.status == EquipmentStatus.AVAILABLE)
-        query = query.filter(Equipment.quantity_available > 0)
     
     if search:
         search_term = f"%{search}%"
@@ -68,18 +60,3 @@ async def get_equipment_list(
         size=size,
         pages=pages
     )
-
-@router.get("/{equipment_id}", response_model=EquipmentResponse)
-async def get_equipment(equipment_id: int, db: Session = Depends(get_db)):
-    equipment = db.query(Equipment).filter(
-        Equipment.id == equipment_id,
-        Equipment.is_active == True
-    ).first()
-    
-    if not equipment:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Sprzęt nie znaleziony"
-        )
-    
-    return EquipmentResponse.from_orm(equipment)
