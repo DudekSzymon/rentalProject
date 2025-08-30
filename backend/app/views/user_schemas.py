@@ -2,6 +2,7 @@ from pydantic import BaseModel, EmailStr, validator
 from typing import Optional
 from datetime import datetime
 from enum import Enum
+from typing import List
 
 # Enum dla ról użytkowników - musi być synchronizowany z modelem User
 class UserRole(str, Enum):
@@ -66,3 +67,10 @@ class RefreshTokenResponse(BaseModel):
     access_token: str           # Nowy access token
     refresh_token: str          # Nowy refresh token
     token_type: str = "bearer"  # Typ tokenu
+
+class UserListResponse(BaseModel):
+    items: List[UserResponse]
+    total: int
+    page: int
+    size: int
+    pages: int

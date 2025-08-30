@@ -10,7 +10,7 @@ from ..models.user import User, UserRole
 from ..models.equipment import Equipment
 from ..models.rental import Rental
 from ..models.payment import Payment, PaymentStatus
-from ..views.user_schemas import UserResponse
+from ..views.user_schemas import UserResponse, UserListResponse
 from ..views.payment_schemas import PaymentResponse, PaymentListResponse
 from ..services.auth_service import auth_service
 
@@ -45,10 +45,12 @@ def _enrich_payment_response(payment: Payment, db: Session) -> PaymentResponse: 
     
     return PaymentResponse(**payment_dict)
 
-@router.get("/users", response_model=List[UserResponse])
+@router.get("/users", response_model=UserListResponse)
 async def get_all_users(
-   search: Optional[str] = None,
-   db: Session = Depends(get_db)
+    page: int = Query(1),
+    size: int = Query(10),
+    search: Optional[str] = None,
+    db: Session = Depends(get_db)
 ):
    query = db.query(User).filter(User.is_active == True)
    
@@ -62,8 +64,15 @@ async def get_all_users(
            )
        )
    
-   users= query.all()
-   return [UserResponse.from_orm(user) for user in users]
+   users, total, pages = _paginate(query, page, size)
+
+   return UserListResponse(
+       items=[UserResponse.from_orm(user) for user in users],
+       total = total,
+       page = page,
+       size = size,
+       pages = pages
+   )
 
 @router.put("/users/{user_id}/block")
 async def block_user(

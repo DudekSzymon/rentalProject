@@ -177,7 +177,7 @@ const UsersTab = () => {
       const response = await adminAPI.getUsers(params);
       const data = response.data;
       
-      setUsers(data || []);
+      setUsers(data.items || []);
     } catch (error) {
       console.error("Błąd pobierania użytkowników:", error);
       alert("Błąd pobierania użytkowników: " + (error.message || "Nieznany błąd"));
