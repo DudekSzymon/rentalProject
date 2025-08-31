@@ -7,7 +7,7 @@ from google.auth import jwt as google_jwt
 from pydantic import BaseModel
 
 from ..database import get_db
-from ..models.user import User, AuthProvider, UserRole
+from ..models.user import User, AuthProvider
 from ..views.user_schemas import (
     UserCreate, UserLogin, UserResponse, Token, 
     RefreshTokenRequest, RefreshTokenResponse
@@ -15,8 +15,8 @@ from ..views.user_schemas import (
 from ..services.auth_service import auth_service
 from ..config import settings
 
-router = APIRouter()
-security = HTTPBearer()
+router = APIRouter() #klasa routera fast api która przechowuje w jednym miescju endpointy
+security = HTTPBearer() #sluzy do obslugi uwierzytelnienia httpbearer i wyciąga automatycznie token z headera i parsuje go i zwraca httpauthorization w credentials
 
 class GoogleLoginRequest(BaseModel):
     token: str
@@ -65,7 +65,7 @@ def _verify_google_token(token: str) -> dict:
     if idinfo.get('iss') not in ['accounts.google.com', 'https://accounts.google.com']:
         raise ValueError('Nieprawidłowy issuer.')
     
-    return idinfo
+    return idinfo       #zwracamy informacje o użytkowniku
 
 def _get_or_create_google_user(email: str, google_id: str, first_name: str, last_name: str, db: Session) -> User:
     user = db.query(User).filter(
@@ -106,7 +106,6 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
         email=user_data.email,
         first_name=user_data.first_name,
         last_name=user_data.last_name,
-        phone=user_data.phone,
         password_hash=auth_service.hash_password(user_data.password),
         auth_provider=AuthProvider.LOCAL,
         is_verified=False
@@ -196,7 +195,6 @@ async def get_current_user(
 @router.post("/logout")
 async def logout(
     refresh_data: RefreshTokenRequest,
-    credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db)
 ):
     try:

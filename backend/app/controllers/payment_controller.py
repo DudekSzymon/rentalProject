@@ -1,11 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
-from sqlalchemy import or_, func
-from typing import List, Optional
 from datetime import datetime
 import stripe
-import math
 
 from ..database import get_db
 from ..models.user import User
@@ -13,7 +10,7 @@ from ..models.equipment import Equipment
 from ..models.rental import Rental, RentalStatus
 from ..models.payment import Payment, PaymentStatus, PaymentMethod, PaymentType
 from ..views.payment_schemas import (
-    PaymentCreate, PaymentResponse, PaymentListResponse,
+    PaymentResponse,
     StripePaymentCreate, StripePaymentResponse, OfflinePaymentApproval, StripeConfigResponse
 )
 from ..services.auth_service import auth_service
@@ -120,7 +117,7 @@ async def create_stripe_payment_intent(
     if not stripe.api_key:
         raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED, detail="Stripe nie jest skonfigurowany")
     
-    if payment_data.rental_id:
+    if payment_data.rental_id:              #przez strict mode jest tworzona druga płatność i mamy tu sprawdzanie czy dla danego rentala istnieje juz płatnośc, jeżeli istnieje ustawiamy tą poprzednia na canelled
         existing_payments = db.query(Payment).filter(
             Payment.rental_id == payment_data.rental_id,
             Payment.status.in_([PaymentStatus.PENDING, PaymentStatus.PROCESSING])
@@ -144,11 +141,8 @@ async def create_stripe_payment_intent(
                 description = f"Wypożyczenie: {equipment_name} (ID: {payment_data.rental_id})"
             else:
                 description = f"Wypożyczenie ID: {payment_data.rental_id}"
-        else:
-            metadata['type'] = 'test_payment'
-            description = f"Płatność testowa - {payment_data.amount} {payment_data.currency.upper()}"
         
-        intent = stripe.PaymentIntent.create(
+        intent = stripe.PaymentIntent.create(       # WAZNE WAZNEWAZNEWAZNEWAZNEWAZNEWAZNEWAZNEWAZNE
             amount=int(payment_data.amount * 100),
             currency=payment_data.currency.lower(),
             automatic_payment_methods={'enabled': True},
@@ -237,42 +231,6 @@ async def approve_payment_offline(
     
     return PaymentResponse.from_orm(payment)
 
-@router.post("/create-offline", response_model=PaymentResponse)
-async def create_offline_payment(
-    payment_data: PaymentCreate,
-    admin_user: User = Depends(require_admin),
-    db: Session = Depends(get_db)
-):
-    user_id = admin_user.id
-    rental = None
-    
-    if payment_data.rental_id:
-        rental = db.query(Rental).filter(Rental.id == payment_data.rental_id).first()
-        if not rental:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Wypożyczenie nie znalezione")
-        user_id = rental.user_id
-    
-    new_payment = Payment(
-        user_id=user_id,
-        rental_id=payment_data.rental_id,
-        amount=payment_data.amount,
-        payment_type=payment_data.payment_type,
-        payment_method=payment_data.payment_method,
-        status=PaymentStatus.OFFLINE_APPROVED,
-        description=payment_data.description,
-        offline_approved_by=admin_user.id,
-        offline_approved_at=datetime.utcnow(),
-        processed_at=datetime.utcnow()
-    )
-    
-    db.add(new_payment)
-    _confirm_rental_if_pending(payment_data.rental_id, db)
-    
-    db.commit()
-    db.refresh(new_payment)
-    
-    return PaymentResponse.from_orm(new_payment)
-
 @router.post("/{payment_id}/cancel", response_model=PaymentResponse)
 async def cancel_payment(
     payment_id: int,
@@ -288,18 +246,7 @@ async def cancel_payment(
         )
     
     try:
-        if payment.payment_method == PaymentMethod.STRIPE and payment.external_id and payment.status == PaymentStatus.COMPLETED:
-            try:
-                stripe.Refund.create(
-                    payment_intent=payment.external_id,
-                    metadata={'admin_id': str(admin_user.id), 'reason': 'admin_cancellation'}
-                )
-                payment.status = PaymentStatus.REFUNDED
-                payment.external_status = 'refunded'
-            except stripe.error.StripeError as e:
-                payment.status = PaymentStatus.CANCELLED
-                payment.failure_reason = f"Anulowane przez administratora. Błąd Stripe: {str(e)}"
-        else:
+        if payment.status == PaymentStatus.PENDING:
             payment.status = PaymentStatus.CANCELLED
         
         payment.failure_reason = f"Anulowane przez administratora {admin_user.email}"
@@ -309,13 +256,14 @@ async def cancel_payment(
         if payment.rental_id:
             rental = db.query(Rental).filter(Rental.id == payment.rental_id).first()
             if rental and rental.status in [RentalStatus.CONFIRMED, RentalStatus.PENDING]:
+
+                original_status = rental.status
                 rental.status = RentalStatus.CANCELLED
-                
-                if rental.status == RentalStatus.CONFIRMED:
+
+                if original_status == RentalStatus.CONFIRMED:
                     equipment = db.query(Equipment).filter(Equipment.id == rental.equipment_id).first()
                     if equipment:
                         equipment.quantity_available += rental.quantity
-        
         db.commit()
         db.refresh(payment)
         
