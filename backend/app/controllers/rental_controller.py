@@ -17,7 +17,7 @@ from ..views.rental_schemas import (
     
 )
 from ..services.auth_service import auth_service
-from ..services.rental_service import RentalService
+from ..services.rental_service import rental_service
 
 router = APIRouter()
 security = HTTPBearer()
@@ -31,16 +31,6 @@ def get_current_user(
 def require_admin(current_user: User = Depends(get_current_user)):
     auth_service.require_admin(current_user)
     return current_user
-
-# def _get_rental_or_404(rental_id: int, db: Session) -> Rental:
-#     rental = db.query(Rental).filter(Rental.id == rental_id).first()
-#     if not rental:
-#         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Wypożyczenie nie znalezione")
-#     return rental
-
-# def _check_rental_access(rental: Rental, current_user: User):
-#     if rental.user_id != current_user.id and current_user.role != "admin":
-#         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Brak uprawnień do tego wypożyczenia")
 
 def _get_equipment(equipment_id: int, db: Session) -> Equipment:
     return db.query(Equipment).filter(Equipment.id == equipment_id).first()
@@ -64,8 +54,7 @@ async def get_rental_pricing_preview(
     db: Session = Depends(get_db)
 ):
     try:
-        # Usunięto rental_period - zawsze dzienny
-        pricing = RenatlService(db).get_pricing_preview(equipment_id, start_date, end_date, quantity)       #SPRAWDZIC RentalService(db)
+        pricing = rental_service.get_pricing_preview(equipment_id, start_date, end_date, quantity, db)       #SPRAWDZIC RentalService(db)
         return {"success": True, "pricing": pricing, "message": "Cennik obliczony pomyślnie"}
     except HTTPException as e:
         return {"success": False, "error": e.detail, "pricing": None}
@@ -79,87 +68,10 @@ async def check_equipment_availability(
     db: Session = Depends(get_db)
 ):
     try:
-        equipment = RentalService(db).check_equipment_availability(equipment_id, quantity, start_date, end_date)
+        equipment = rental_service.check_equipment_availability(equipment_id, quantity, start_date, end_date, db)
         return {"available": True, "equipment_name": equipment.name}
     except HTTPException as e:
         return {"available": False, "error": e.detail, "equipment_name": None}
-
-@router.get("/equipment/{equipment_id}/calendar")
-async def get_equipment_calendar(
-    equipment_id: int,
-    start_date: Optional[datetime] = Query(None),
-    end_date: Optional[datetime] = Query(None),
-    db: Session = Depends(get_db)
-):
-    if not start_date:
-        start_date = datetime.now().date()
-    if not end_date:
-        end_date = start_date + timedelta(days=90)
-    
-    equipment = db.query(Equipment).filter(Equipment.id == equipment_id, Equipment.is_active == True).first()
-    if not equipment:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sprzęt nie znaleziony")
-    
-    rentals = db.query(Rental).filter(
-        and_(
-            Rental.equipment_id == equipment_id,
-            Rental.status.in_([RentalStatus.PENDING, RentalStatus.CONFIRMED, RentalStatus.ACTIVE]),
-            Rental.start_date <= end_date,
-            Rental.end_date >= start_date
-        )
-    ).order_by(Rental.start_date).all()
-    
-    return {
-        "equipment": {"id": equipment.id, "name": equipment.name, "total_quantity": equipment.quantity_total},
-        "period": {"start_date": start_date, "end_date": end_date},
-        "rentals": [
-            {"id": r.id, "start_date": r.start_date, "end_date": r.end_date, 
-             "quantity": r.quantity, "status": r.status, "user_id": r.user_id}
-            for r in rentals
-        ]
-    }
-
-# @router.post("/{rental_id}/confirm")
-# async def confirm_rental(
-#     rental_id: int,
-#     admin_user: User = Depends(require_admin),
-#     db: Session = Depends(get_db)
-# ):
-#     rental = _get_rental_or_404(rental_id, db)
-    
-#     if rental.status != RentalStatus.PENDING:
-#         raise HTTPException(
-#             status_code=status.HTTP_400_BAD_REQUEST,
-#             detail=f"Wypożyczenie ma status {rental.status}, można potwierdzić tylko PENDING"
-#         )
-    
-#     if not db.query(Payment).filter(
-#         and_(
-#             Payment.rental_id == rental_id,
-#             Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.OFFLINE_APPROVED])
-#         )
-#     ).first():
-#         raise HTTPException(
-#             status_code=status.HTTP_400_BAD_REQUEST,
-#             detail="Wypożyczenie nie może być potwierdzone - brak opłaconej płatności"
-#         )
-    
-#     try:
-#         RentalService(db).check_equipment_availability(
-#             rental.equipment_id, rental.quantity, rental.start_date, rental.end_date
-#         )
-#     except HTTPException as e:
-#         raise HTTPException(
-#             status_code=status.HTTP_400_BAD_REQUEST,
-#             detail=f"Sprzęt nie jest już dostępny: {e.detail}"
-#         )
-    
-#     rental.status = RentalStatus.CONFIRMED
-#     equipment = _get_equipment(rental.equipment_id, db)
-#     equipment.quantity_available -= rental.quantity
-#     db.commit()
-    
-#     return {"message": "Wypożyczenie zostało potwierdzone", "rental_id": rental_id, "new_status": rental.status}
 
 @router.post("", response_model=RentalResponse)
 async def create_rental(
@@ -167,7 +79,7 @@ async def create_rental(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    new_rental = RentalService(db).create_rental(rental_data, current_user)
+    new_rental = rental_service.create_rental(rental_data, current_user, db)
     return _enrich_rental_response(new_rental, db)
 
 @router.get("", response_model=RentalListResponse)
@@ -207,39 +119,3 @@ async def get_my_rentals(
         size=size,
         pages=math.ceil(total / size) if total > 0 else 1
     )
-
-# @router.get("/{rental_id}", response_model=RentalResponse)
-# async def get_rental(
-#     rental_id: int,
-#     current_user: User = Depends(get_current_user),
-#     db: Session = Depends(get_db)
-# ):
-#     rental = _get_rental_or_404(rental_id, db)
-#     _check_rental_access(rental, current_user)
-#     return _enrich_rental_response(rental, db)
-
-# @router.delete("/{rental_id}")
-# async def cancel_rental(
-#     rental_id: int,
-#     current_user: User = Depends(get_current_user),
-#     db: Session = Depends(get_db)
-# ):
-#     rental = _get_rental_or_404(rental_id, db)
-#     _check_rental_access(rental, current_user)
-    
-#     if rental.status not in [RentalStatus.PENDING, RentalStatus.CONFIRMED]:
-#         raise HTTPException(
-#             status_code=status.HTTP_400_BAD_REQUEST,
-#             detail="Można anulować tylko oczekujące lub potwierdzone wypożyczenia"
-#         )
-    
-#     old_status = rental.status
-#     rental.status = RentalStatus.CANCELLED
-    
-#     if old_status == RentalStatus.CONFIRMED:
-#         equipment = _get_equipment(rental.equipment_id, db)
-#         equipment.quantity_available += rental.quantity
-    
-#     db.commit()
-    
-#     return {"message": "Wypożyczenie zostało anulowane"}

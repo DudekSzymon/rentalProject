@@ -77,9 +77,7 @@ const RentalForm = () => {
         quantity: quantity,
       };
 
-      const availabilityResponse = await rentalsAPI.checkAvailability(
-        availabilityParams
-      );
+      const availabilityResponse = await rentalsAPI.checkAvailability(availabilityParams );
       const availabilityData = availabilityResponse.data;
       setAvailability(availabilityData);
 

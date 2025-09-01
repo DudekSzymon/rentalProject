@@ -20,7 +20,7 @@ export default function Login() {
       if (window.google) {
         window.google.accounts.id.initialize({
           client_id:
-            "94124651477-2h9lg8d2ammkn7402la0tm6do5850oaa.apps.googleusercontent.com",
+            "94124651477-2h9lg8d2ammkn7402la0tm6do5850oaa.apps.googleusercontent.com",    // potrzebne do wyświetlenie okienka google
           callback: handleGoogleLogin, //Tutaj Google wyśle token //Ta funckja zostanie WYWOŁANA PRZEZ google
           auto_select: false,
           cancel_on_tap_outside: true,

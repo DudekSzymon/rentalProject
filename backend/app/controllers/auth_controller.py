@@ -46,7 +46,7 @@ def _create_token_response(user: User, db: Session) -> Token:
 
 def _verify_google_token(token: str) -> dict:
     try:
-        idinfo = id_token.verify_oauth2_token(token, requests.Request(), settings.GOOGLE_CLIENT_ID)
+        idinfo = id_token.verify_oauth2_token(token, requests.Request(), settings.GOOGLE_CLIENT_ID)     #FUNKCJA Z GOOGLA
     except ValueError as e:
         if "Token used too early" in str(e) or "Token used too late" in str(e):
             certs_url = "https://www.googleapis.com/oauth2/v1/certs"
@@ -62,7 +62,7 @@ def _verify_google_token(token: str) -> dict:
         else:
             raise e
     
-    if idinfo.get('iss') not in ['accounts.google.com', 'https://accounts.google.com']:
+    if idinfo.get('iss') not in ['accounts.google.com', 'https://accounts.google.com']: #sprawdzamy kto wydał token
         raise ValueError('Nieprawidłowy issuer.')
     
     return idinfo       #zwracamy informacje o użytkowniku
@@ -161,7 +161,7 @@ async def google_login(google_data: GoogleLoginRequest, db: Session = Depends(ge
     except HTTPException:
         raise
     except Exception as e:
-        db.rollback()
+        db.rollback()   #zeby nie utworzyć w bazie niepełnego uzytkownika
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Błąd bazy danych: {str(e)}"
@@ -202,8 +202,3 @@ async def logout(
     except Exception:
         pass
     return {"message": "Pomyślnie wylogowano"}
-
-@router.get("/google-config")
-async def get_google_config():
-    _ensure_google_configured()
-    return {"client_id": settings.GOOGLE_CLIENT_ID, "enabled": True}

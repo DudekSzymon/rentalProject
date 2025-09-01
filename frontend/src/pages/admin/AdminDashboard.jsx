@@ -125,9 +125,6 @@ const PaymentsTab = ({ onStatsRefresh }) => {
                       <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-50 text-blue-700">
                         {payment.status}
                       </span>
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-700">
-                        {payment.payment_method}
-                      </span>
                     </div>
                   </div>
                   <div className="flex items-center space-x-3 w-full sm:w-auto">
