@@ -17,7 +17,7 @@ from ..views.rental_schemas import (
     
 )
 from ..services.auth_service import auth_service
-from ..services.rental_service import rental_service
+from ..services.rental_service import RentalService
 
 router = APIRouter()
 security = HTTPBearer()
@@ -65,7 +65,7 @@ async def get_rental_pricing_preview(
 ):
     try:
         # Usunięto rental_period - zawsze dzienny
-        pricing = rental_service.get_pricing_preview(equipment_id, start_date, end_date, quantity, db)       #SPRAWDZIC RentalService(db)
+        pricing = RenatlService(db).get_pricing_preview(equipment_id, start_date, end_date, quantity)       #SPRAWDZIC RentalService(db)
         return {"success": True, "pricing": pricing, "message": "Cennik obliczony pomyślnie"}
     except HTTPException as e:
         return {"success": False, "error": e.detail, "pricing": None}
@@ -79,7 +79,7 @@ async def check_equipment_availability(
     db: Session = Depends(get_db)
 ):
     try:
-        equipment = rental_service.check_equipment_availability(equipment_id, quantity, start_date, end_date, db)
+        equipment = RentalService(db).check_equipment_availability(equipment_id, quantity, start_date, end_date)
         return {"available": True, "equipment_name": equipment.name}
     except HTTPException as e:
         return {"available": False, "error": e.detail, "equipment_name": None}
@@ -167,7 +167,7 @@ async def create_rental(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    new_rental = rental_service.create_rental(rental_data, current_user, db)
+    new_rental = RentalService(db).create_rental(rental_data, current_user)
     return _enrich_rental_response(new_rental, db)
 
 @router.get("", response_model=RentalListResponse)

@@ -13,6 +13,11 @@ class PaymentStatus(str, Enum):
     REFUNDED = "refunded"
     OFFLINE_APPROVED = "offline_approved"
 
+class PaymentMethod(str, Enum):
+    STRIPE = "stripe"
+    OFFLINE = "offline"
+    BANK_TRANSFER = "bank_transfer"
+
 class PaymentType(str, Enum):
     RENTAL = "rental"
     DEPOSIT = "deposit"
@@ -24,6 +29,7 @@ class PaymentCreate(BaseModel):
     rental_id: Optional[int] = None
     amount: Decimal
     payment_type: PaymentType = PaymentType.RENTAL
+    payment_method: PaymentMethod
     description: Optional[str] = None
     
     @validator('amount')
@@ -67,6 +73,7 @@ class PaymentResponse(BaseModel):
     amount: Decimal
     currency: str
     payment_type: PaymentType
+    payment_method: PaymentMethod
     status: PaymentStatus
     external_id: Optional[str]
     description: Optional[str]

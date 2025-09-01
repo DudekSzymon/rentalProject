@@ -8,7 +8,7 @@ from ..database import get_db
 from ..models.user import User
 from ..models.equipment import Equipment
 from ..models.rental import Rental, RentalStatus
-from ..models.payment import Payment, PaymentStatus, PaymentType
+from ..models.payment import Payment, PaymentStatus, PaymentMethod, PaymentType
 from ..views.payment_schemas import (
     PaymentResponse,
     StripePaymentCreate, StripePaymentResponse, OfflinePaymentApproval, StripeConfigResponse
@@ -156,6 +156,7 @@ async def create_stripe_payment_intent(
             amount=payment_data.amount,
             currency=payment_data.currency.upper(),
             payment_type=PaymentType.RENTAL,
+            payment_method=PaymentMethod.STRIPE,
             status=PaymentStatus.PENDING,
             external_id=intent.id,
             description=description
