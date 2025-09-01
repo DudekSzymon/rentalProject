@@ -13,7 +13,7 @@ from .rental_schemas import (
 from .payment_schemas import (
     PaymentCreate, PaymentResponse, PaymentListResponse,
     StripePaymentCreate, StripePaymentResponse, OfflinePaymentApproval,
-    PaymentStatus, PaymentMethod, PaymentType
+    PaymentStatus, PaymentType
 )
 
 __all__ = [
@@ -32,5 +32,5 @@ __all__ = [
     # Payment schemas
     "PaymentCreate", "PaymentResponse", "PaymentListResponse",
     "StripePaymentCreate", "StripePaymentResponse", "OfflinePaymentApproval",
-    "PaymentStatus", "PaymentMethod", "PaymentType"
-]
+    "PaymentStatus", "PaymentType"
+] 

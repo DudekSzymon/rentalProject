@@ -11,16 +11,16 @@ from ..models.user import User
 from ..models.payment import Payment, PaymentStatus, PaymentType
 from ..views.rental_schemas import RentalCreate
 
+# ZMIEŃ KONSTRUKTOR
 class RentalService:
-    def __init__(self, db: Session):
-        self.db = db
+    def __init__(self):  # ← USUŃ db: Session
+        pass  # ← USUŃ self.db = db
     
     def _normalize_datetime(self, dt: datetime) -> datetime:
         return dt.replace(tzinfo=None) if hasattr(dt, 'tzinfo') and dt.tzinfo else dt
 
     def validate_rental_dates(self, start_date: datetime, end_date: datetime) -> None:
         now = datetime.now()
-
         duration_days = (end_date - start_date).days
 
         if duration_days > 90:
@@ -34,9 +34,10 @@ class RentalService:
         equipment_id: int, 
         quantity: int, 
         start_date: datetime, 
-        end_date: datetime
+        end_date: datetime,
+        db: Session  # ← DODAJ db jako parametr
     ) -> Equipment:
-        equipment = self.db.query(Equipment).filter(
+        equipment = db.query(Equipment).filter(  # ← ZMIEŃ self.db na db
             Equipment.id == equipment_id,
             Equipment.is_active == True
         ).first()
@@ -47,7 +48,7 @@ class RentalService:
                 detail=f"Dostępne maksymalnie {equipment.quantity_total} sztuk"
             )
         
-        conflicting_query = self.db.query(Rental).filter(
+        conflicting_query = db.query(Rental).filter(  # ← ZMIEŃ self.db na db
             and_(
                 Rental.equipment_id == equipment_id,
                 Rental.status.in_([RentalStatus.PENDING, RentalStatus.CONFIRMED, RentalStatus.ACTIVE]),
@@ -92,9 +93,8 @@ class RentalService:
             "duration_days": duration_days
         }
     
-    def validate_user_eligibility(self, user: User, equipment: Equipment) -> None:
-        
-        active_rentals = self.db.query(Rental).filter(
+    def validate_user_eligibility(self, user: User, equipment: Equipment, db: Session) -> None:  # ← DODAJ db
+        active_rentals = db.query(Rental).filter(  # ← ZMIEŃ self.db na db
             and_(
                 Rental.user_id == user.id,
                 Rental.status.in_([RentalStatus.PENDING, RentalStatus.CONFIRMED, RentalStatus.ACTIVE])
@@ -107,7 +107,7 @@ class RentalService:
                 detail="Maksymalna liczba aktywnych wypożyczeń: 100"
             )
     
-    def create_rental(self, rental_data: RentalCreate, user: User) -> Rental:
+    def create_rental(self, rental_data: RentalCreate, user: User, db: Session) -> Rental:  # ← DODAJ db
         start_date = self._normalize_datetime(rental_data.start_date)
         end_date = self._normalize_datetime(rental_data.end_date)
         
@@ -117,10 +117,11 @@ class RentalService:
             rental_data.equipment_id,
             rental_data.quantity,
             start_date,
-            end_date
+            end_date,
+            db  # ← DODAJ db
         )
         
-        self.validate_user_eligibility(user, equipment)
+        self.validate_user_eligibility(user, equipment, db)  # ← DODAJ db
 
         pricing = self.calculate_rental_price(
             equipment,
@@ -143,12 +144,12 @@ class RentalService:
         )
         
         try:
-            self.db.add(new_rental)
-            self.db.commit()
-            self.db.refresh(new_rental)
+            db.add(new_rental)  # ← ZMIEŃ self.db na db
+            db.commit()  # ← ZMIEŃ self.db na db
+            db.refresh(new_rental)  # ← ZMIEŃ self.db na db
             return new_rental
         except Exception as e:
-            self.db.rollback()
+            db.rollback()  # ← ZMIEŃ self.db na db
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Błąd tworzenia wypożyczenia: {str(e)}"
@@ -159,7 +160,8 @@ class RentalService:
         equipment_id: int, 
         start_date: datetime, 
         end_date: datetime, 
-        quantity: int
+        quantity: int,
+        db: Session  # ← DODAJ db
     ) -> dict:
         start_date = self._normalize_datetime(start_date)
         end_date = self._normalize_datetime(end_date)
@@ -167,7 +169,7 @@ class RentalService:
         self.validate_rental_dates(start_date, end_date)
         
         equipment = self.check_equipment_availability(
-            equipment_id, quantity, start_date, end_date
+            equipment_id, quantity, start_date, end_date, db  # ← DODAJ db
         )
         
         # Tylko dzienny okres rozliczenia
@@ -180,3 +182,6 @@ class RentalService:
             "equipment_daily_rate": equipment.daily_rate,
             **pricing
         }
+
+# ← DODAJ SINGLETON NA KOŃCU PLIKU
+rental_service = RentalService()

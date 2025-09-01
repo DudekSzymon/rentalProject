@@ -12,12 +12,6 @@ class PaymentStatus(str, Enum):
     CANCELLED = "cancelled"      # Anulowane
     REFUNDED = "refunded"       # Zwrócone
     OFFLINE_APPROVED = "offline_approved"  # Zatwierdzone offline przez admina
-
-class PaymentMethod(str, Enum):
-    STRIPE = "stripe"
-    OFFLINE = "offline"          # Płatność gotówką/przelewem zatwierdzona przez admina
-    BANK_TRANSFER = "bank_transfer"
-
 class PaymentType(str, Enum):
     RENTAL = "rental"            # Płatność za wypożyczenie
     DEPOSIT = "deposit"          # Kaucja
@@ -37,7 +31,6 @@ class Payment(Base):
     amount = Column(Numeric(10, 2), nullable=False)
     currency = Column(String(3), default="PLN")
     payment_type = Column(SQLEnum(PaymentType), default=PaymentType.RENTAL)
-    payment_method = Column(SQLEnum(PaymentMethod), nullable=False)
     status = Column(SQLEnum(PaymentStatus), default=PaymentStatus.PENDING)
     
     # Zewnętrzne ID płatności (Stripe, PayPal)
