@@ -9,7 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "../../components/ui/card";
-import { equipmentAPI, rentalsAPI } from "../../utils/api";
+import { rentalsAPI } from "../../utils/api";
 import {
   ArrowLeft,
   Calendar,
@@ -40,28 +40,12 @@ const RentalForm = () => {
   const [pricing, setPricing] = useState(null);
   const [availability, setAvailability] = useState(null);
 
-  // Pobierz dane sprzętu jeśli nie ma w state
-  useEffect(() => {
-    if (!equipment && equipmentId) {
-      fetchEquipment();
-    }
-  }, [equipmentId]);
-
   // Sprawdź dostępność i cenę gdy zmienią się daty
   useEffect(() => {
     if (equipment && startDate && endDate && quantity) {
       checkAvailabilityAndPricing();
     }
   }, [equipment, startDate, endDate, quantity]);
-
-  const fetchEquipment = async () => {
-    try {
-      const response = await equipmentAPI.getById(equipmentId);
-      setEquipment(response.data);
-    } catch (error) {
-      setError(error.message || "Nie znaleziono sprzętu");
-    }
-  };
 
   const checkAvailabilityAndPricing = async () => {
     try {
@@ -144,22 +128,18 @@ const RentalForm = () => {
     startDate && endDate && new Date(startDate) < new Date(endDate);
 
   if (!equipment) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 relative overflow-hidden">
-        <div className="absolute inset-0">
-          <div className="absolute top-20 left-20 w-72 h-72 bg-blue-500/5 rounded-full blur-3xl"></div>
-          <div className="absolute bottom-20 right-20 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl"></div>
-        </div>
-
-        <div className="relative z-10 min-h-screen flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-            <p className="text-gray-900 text-lg">Ładowanie...</p>
-          </div>
-        </div>
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="text-center p-8 bg-white rounded-xl shadow-sm">
+        <h2 className="text-xl font-bold mb-4">Brak danych sprzętu</h2>
+        <p className="text-gray-600 mb-6">Wybierz sprzęt z katalogu</p>
+        <Button onClick={() => navigate('/equipment')}>
+          Powrót do katalogu
+        </Button>
       </div>
-    );
-  }
+    </div>
+  );
+}
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 relative overflow-hidden">

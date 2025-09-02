@@ -47,25 +47,10 @@ const MyRentals = () => {
       color: "text-blue-700 bg-blue-100 border-blue-200",
       icon: CheckCircle,
     },
-    active: {
-      label: "Aktywne",
-      color: "text-green-700 bg-green-100 border-green-200",
-      icon: CheckCircle,
-    },
-    completed: {
-      label: "Zakończone",
-      color: "text-gray-700 bg-gray-100 border-gray-200",
-      icon: CheckCircle,
-    },
     cancelled: {
       label: "Anulowane",
       color: "text-red-700 bg-red-100 border-red-200",
       icon: XCircle,
-    },
-    overdue: {
-      label: "Przeterminowane",
-      color: "text-red-800 bg-red-200 border-red-300",
-      icon: AlertCircle,
     },
   };
 
@@ -189,8 +174,6 @@ const MyRentals = () => {
     { value: "all", label: "Wszystkie" },
     { value: "pending", label: "Oczekujące" },
     { value: "confirmed", label: "Potwierdzone" },
-    { value: "active", label: "Aktywne" },
-    { value: "completed", label: "Zakończone" },
     { value: "cancelled", label: "Anulowane" },
   ];
 
@@ -440,27 +423,11 @@ const MyRentals = () => {
                                       <strong>Ilość:</strong>{" "}
                                       {rental.quantity || 1}
                                     </p>
-                                    <p className="text-orange-600 text-xs font-medium">
-                                      dzienny rozliczenie
-                                    </p>
                                   </div>
                                 </div>
                               </div>
                             </div>
-
-                            {/* Notatki */}
-                            {rental.notes && (
-                              <div className="mt-4 p-4 bg-gray-50 rounded-xl border border-gray-200">
-                                <p className="text-gray-900 text-sm">
-                                  <strong className="text-blue-600">
-                                    Notatki:
-                                  </strong>{" "}
-                                  {rental.notes}
-                                </p>
-                              </div>
-                            )}
                           </div>
-                          {/* USUNIĘTO CAŁĄ SEKCJĘ Z PRZYCISKIEM EDYTUJ */}
                         </div>
                       </div>
                     </div>

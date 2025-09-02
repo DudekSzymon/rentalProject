@@ -119,28 +119,6 @@ export const AuthProvider = ({ children }) => {
         setUser(null);
     };
 
-    // Funkcja do ręcznego odświeżenia tokenu (opcjonalna)
-    const refreshToken = async () => {
-        const currentRefreshToken = localStorage.getItem('refresh_token');
-        
-        if (!currentRefreshToken) {
-            throw new Error('No refresh token available');
-        }
-
-        try {
-            const response = await authAPI.refreshToken(currentRefreshToken);
-            const data = response.data;
-            
-            localStorage.setItem('access_token', data.access_token);
-            localStorage.setItem('refresh_token', data.refresh_token);
-            
-            return data.access_token;
-        } catch (error) {
-            // Jeśli odświeżenie się nie powiodło, wyloguj użytkownika
-            logout();
-            throw error;
-        }
-    };
 
     const value = {
         user,
@@ -148,7 +126,6 @@ export const AuthProvider = ({ children }) => {
         login,
         googleLogin,
         logout,
-        refreshToken,
         setUser
     };
 
