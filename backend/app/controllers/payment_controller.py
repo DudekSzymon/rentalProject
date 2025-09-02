@@ -64,50 +64,6 @@ async def get_stripe_config():
     _ensure_stripe_configured()
     return StripeConfigResponse(publishable_key=settings.STRIPE_PUBLISHABLE_KEY, currency="pln")
 
-@router.get("/stripe/status/{payment_intent_id}")
-async def check_payment_status(
-    payment_intent_id: str,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    try:
-        intent = stripe.PaymentIntent.retrieve(payment_intent_id)
-        payment = _get_payment_by_intent_or_404(payment_intent_id, current_user.id, db)
-        
-        stripe_status_map = {
-            'succeeded': PaymentStatus.COMPLETED,
-            'processing': PaymentStatus.PROCESSING,
-            'requires_payment_method': PaymentStatus.FAILED,
-            'requires_confirmation': PaymentStatus.PENDING,
-            'requires_action': PaymentStatus.PENDING,
-            'canceled': PaymentStatus.CANCELLED
-        }
-        
-        expected_status = stripe_status_map.get(intent.status, PaymentStatus.PENDING)
-        
-        if payment.status != expected_status:
-            payment.status = expected_status
-            payment.external_status = intent.status
-            
-            if expected_status == PaymentStatus.COMPLETED and not payment.processed_at:
-                payment.processed_at = datetime.utcnow()
-                _confirm_rental_if_pending(payment.rental_id, db)
-            
-            db.commit()
-        
-        return {
-            "payment_intent_id": payment_intent_id,
-            "stripe_status": intent.status,
-            "our_status": payment.status,
-            "amount": float(payment.amount),
-            "currency": payment.currency,
-            "created_at": payment.created_at,
-            "processed_at": payment.processed_at
-        }
-        
-    except stripe.error.StripeError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Błąd Stripe: {str(e)}")
-
 @router.post("/stripe/create-payment-intent", response_model=StripePaymentResponse)
 async def create_stripe_payment_intent(
     payment_data: StripePaymentCreate,
@@ -202,8 +158,6 @@ async def confirm_stripe_payment(
         payment.external_status = intent.status
         db.commit()
         
-        return {"message": "Status płatności zaktualizowany", "status": payment.status}
-        
     except stripe.error.StripeError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Błąd Stripe: {str(e)}")
 
@@ -239,12 +193,6 @@ async def cancel_payment(
 ):
     payment = _get_payment_or_404(payment_id, db)
     
-    if payment.status not in [PaymentStatus.COMPLETED, PaymentStatus.OFFLINE_APPROVED, PaymentStatus.PENDING, PaymentStatus.PROCESSING]:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Płatność ze statusem {payment.status} nie może być anulowana"
-        )
-    
     try:
         if payment.status == PaymentStatus.PENDING:
             payment.status = PaymentStatus.CANCELLED
@@ -255,15 +203,10 @@ async def cancel_payment(
         
         if payment.rental_id:
             rental = db.query(Rental).filter(Rental.id == payment.rental_id).first()
-            if rental and rental.status in [RentalStatus.CONFIRMED, RentalStatus.PENDING]:
+            if rental and rental.status in [RentalStatus.PENDING]:
 
-                original_status = rental.status
-                rental.status = RentalStatus.CANCELLED
+                rental.status = RentalStatus.CANCELLED  #dopuki nie zaakceptujemy/anulujemy platnosci przedmioty sa zajęte w bazie
 
-                if original_status == RentalStatus.CONFIRMED:
-                    equipment = db.query(Equipment).filter(Equipment.id == rental.equipment_id).first()
-                    if equipment:
-                        equipment.quantity_available += rental.quantity
         db.commit()
         db.refresh(payment)
         
