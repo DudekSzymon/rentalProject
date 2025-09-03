@@ -26,7 +26,7 @@ api.interceptors.request.use(
   }
 );
 
-// Uproszczony interceptor bez kolejki
+// interceptor
 api.interceptors.response.use(
   (response) => {
     return response;
@@ -42,12 +42,10 @@ api.interceptors.response.use(
       
       if (refreshToken) {
         try {
-          console.log('🔄 Attempting to refresh token...');
+          console.log(' Attempting to refresh token...');
         
           // Próba odświeżenia tokenu
-          const response = await axios.post(`${API_BASE_URL}/api/auth/refresh`, {
-            refresh_token: refreshToken
-          });
+          const response = await axios.post(`${API_BASE_URL}/api/auth/refresh`, { refresh_token: refreshToken });
 
           const { access_token, refresh_token: newRefreshToken } = response.data;
           
@@ -55,7 +53,7 @@ api.interceptors.response.use(
           localStorage.setItem('access_token', access_token);
           localStorage.setItem('refresh_token', newRefreshToken);
           
-          console.log('✅ Token refreshed successfully');
+          console.log(' Token refreshed successfully');
           
           // Zaktualizuj header autoryzacji
           api.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
@@ -65,7 +63,7 @@ api.interceptors.response.use(
           return api(originalRequest);
           
         } catch (refreshError) {
-          console.log('❌ Token refresh failed:', refreshError);
+          console.log(' Token refresh failed:', refreshError);
           
           // Wyczyść tokeny i przekieruj do logowania
           localStorage.removeItem('access_token');

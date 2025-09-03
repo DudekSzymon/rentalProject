@@ -93,7 +93,7 @@ def _get_or_create_google_user(email: str, google_id: str, first_name: str, last
     db.refresh(user)
     return user
 
-@router.post("/register", response_model=UserResponse)
+@router.post("/register")
 async def register(user_data: UserCreate, db: Session = Depends(get_db)):
     existing_user = db.query(User).filter(User.email == user_data.email).first()
     if existing_user:
@@ -114,8 +114,7 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
-    
-    return UserResponse.from_orm(new_user)
+
 
 @router.post("/login", response_model=Token)
 async def login(login_data: UserLogin, db: Session = Depends(get_db)):

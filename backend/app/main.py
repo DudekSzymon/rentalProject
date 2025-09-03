@@ -33,9 +33,9 @@ app.include_router(test_controller.router, prefix="/api/test", tags=["Test"])
 async def startup_event():
     """Inicjalizacja bazy danych przy starcie"""
     init_db()
-    print("🚀 Baza danych zainicjalizowana!")
-    print("📖 Dokumentacja API: http://localhost:8000/docs")
-    print("🌐 Frontend URL: http://localhost:5173")
+    print(" Baza danych zainicjalizowana!")
+    print(" Dokumentacja API: http://localhost:8000/docs")
+    print(" Frontend URL: http://localhost:5173")
 
 @app.get("/")
 def read_root():

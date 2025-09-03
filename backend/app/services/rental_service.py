@@ -66,7 +66,7 @@ class RentalService:
         
         return equipment
     
-    def calculate_rental_price(
+    def _calculate_rental_price(
         self, 
         equipment: Equipment, 
         start_date: datetime, 
@@ -120,7 +120,7 @@ class RentalService:
         
         self.validate_user_eligibility(user, equipment, db) 
 
-        pricing = self.calculate_rental_price(
+        pricing = self._calculate_rental_price(
             equipment,
             start_date,
             end_date,
@@ -169,7 +169,7 @@ class RentalService:
             equipment_id, quantity, start_date, end_date, db 
         )
         
-        pricing = self.calculate_rental_price(
+        pricing = self._calculate_rental_price(
             equipment, start_date, end_date, quantity
         )
         

@@ -33,12 +33,16 @@ export default function Register() {
             setLoading(false);
             return;
         }
+        if (form.password.length < 6){
+            setError("Hasło musi miec 6 min znaków");
+            setLoading(false);
+            return;
+        }
         if (form.password !== form.confirm) {
             setError("Hasła nie są takie same.");
             setLoading(false);
             return;
         }
-
         try {
             const response = await authAPI.register({
                 first_name: form.firstName,
@@ -49,12 +53,7 @@ export default function Register() {
             
             const data = response.data;
             
-            if (data.access_token) {
-                localStorage.setItem("access_token", data.access_token);
-                localStorage.setItem("user", JSON.stringify(data.user));
-            }
-
-            navigate("/");
+            navigate("/login");
         } catch (error) {
             setError(error.message || "Rejestracja nie powiodła się");
         } finally {

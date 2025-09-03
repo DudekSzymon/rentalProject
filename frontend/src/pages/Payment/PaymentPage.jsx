@@ -76,8 +76,7 @@ const StripePaymentForm = ({ rental, equipment, onPaymentSuccess, onPaymentError
 
         try {
             //Frontend bezpośrednio wywołuje STRIPE API 
-            const { error, paymentIntent: confirmedPayment } = await 
-            stripe.confirmCardPayment(clientSecret, {
+            const { error, paymentIntent: confirmedPayment } = await stripe.confirmCardPayment(clientSecret, {
                 // = {Dane z płatności}
                 payment_method: {
                     card: cardElement, //Dane z karty formularza

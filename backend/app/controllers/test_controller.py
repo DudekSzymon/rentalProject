@@ -4,6 +4,6 @@ from pydantic import BaseModel
 router = APIRouter()
 class TestData(BaseModel):
     name: str
-@router.get("")
+@router.post("")
 async def test(data: TestData):
-    return {"message": " Otrzymałem {data.name}"}
+    return {"message": f" Otrzymałem {data.name}"}  
