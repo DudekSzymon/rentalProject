@@ -41,12 +41,6 @@ export const AuthProvider = ({ children }) => {
                 });
             } catch (error) {
                 console.error('Auth check failed:', error);
-                // Nie czyścimy tokenów tutaj - pozwalamy interceptorowi spróbować odświeżyć
-                if (error.response?.status !== 401) {
-                    localStorage.removeItem('access_token');
-                    localStorage.removeItem('refresh_token');
-                    localStorage.removeItem('user');
-                }
             }
             
             setLoading(false);

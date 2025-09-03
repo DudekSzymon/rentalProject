@@ -68,7 +68,3 @@ class Payment(Base):
         """Sprawdza czy płatność została pomyślnie zrealizowana"""
         return self.status in [PaymentStatus.COMPLETED, PaymentStatus.OFFLINE_APPROVED]
     
-    @property
-    def can_be_refunded(self):
-        """Sprawdza czy płatność może być zwrócona"""
-        return self.status == PaymentStatus.COMPLETED and self.payment_method == PaymentMethod.STRIPE

@@ -19,7 +19,7 @@ import {
     HardHat,
     Truck
 } from 'lucide-react';
-
+import axios from 'axios'
 export default function Landing() {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const { user, logout: authLogout } = useAuth();
@@ -29,7 +29,18 @@ export default function Landing() {
         authLogout();
         navigate("/");
     };
-
+// const handleTest = async () => {
+//     const response = await axios.get('http://localhost:8000/api/test')
+//     console.log(response.data);
+//     alert(response.data.message);
+// }
+// const handleTest = async () => {
+//     const response = await axios.post('http://localhost:8000/api/test',{
+//         name: "test"
+//     });
+//     console.log(response.data);
+//     alert(response.data.message);
+// };
     return (
         <div className="min-h-screen bg-gray-50">
             {/* Navigation */}
@@ -110,6 +121,12 @@ export default function Landing() {
                                     >
                                         Zarejestruj się
                                     </Button>
+                                    {/* <Button 
+                                        onClick={handleTest}
+                                        className="bg-blue-500 hover:bg-blue-600 text-white border-0 rounded-xl shadow-sm hover:shadow-md transition-all duration-200"
+                                    >
+                                        Test
+                                    </Button> */}
                                 </div>
                             )}
                         </div>

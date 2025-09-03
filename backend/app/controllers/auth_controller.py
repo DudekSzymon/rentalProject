@@ -176,7 +176,7 @@ async def refresh_token(refresh_data: RefreshTokenRequest, db: Session = Depends
             detail="Nieprawidłowy lub wygasły refresh token"
         )
     
-    access_token = auth_service.create_access_token_only(user.id)
+    access_token = auth_service.create_access_token({"sub": str(user.id)})
     
     return RefreshTokenResponse(
         access_token=access_token,

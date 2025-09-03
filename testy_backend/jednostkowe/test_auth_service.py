@@ -64,7 +64,7 @@ def test_tworzenie_refresh_tokenu():
 def test_tylko_access_token():
     print("[UNIT] Test tworzenia wyłącznie access tokenu")
     try:
-        token = auth_service.create_access_token_only(123)
+        token = auth_service.create_access_token(123)
         print(f"Access token: {token}")
         decoded = auth_service.verify_token(token)
         print(f"Zdekodowany token: {decoded}")

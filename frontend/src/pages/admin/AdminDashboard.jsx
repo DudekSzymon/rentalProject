@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 
 // Komponent dla zatwierdzania płatności
-const PaymentsTab = ({ onStatsRefresh }) => {
+const PaymentsTab = () => {
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -54,9 +54,6 @@ const PaymentsTab = ({ onStatsRefresh }) => {
 
       alert("Płatność zatwierdzona pomyślnie!");
       fetchPendingPayments();
-      if (onStatsRefresh) {
-        onStatsRefresh();
-      }
     } catch (error) {
       console.error("Błąd zatwierdzania płatności:", error);
       alert(
@@ -74,9 +71,6 @@ const PaymentsTab = ({ onStatsRefresh }) => {
       await adminAPI.cancelPayment(paymentId);
       alert("Płatność anulowana pomyślnie!");
       fetchPendingPayments();
-      if (onStatsRefresh) {
-        onStatsRefresh();
-      }
     } catch (error) {
       console.error("Błąd anulowania płatności:", error);
       alert("Błąd anulowania płatności: " + (error.message || "Nieznany błąd"));

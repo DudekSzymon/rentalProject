@@ -44,6 +44,3 @@ class User(Base):
    payments = relationship("Payment", back_populates="user", foreign_keys="Payment.user_id")  # Płatności użytkownika
    refresh_tokens = relationship("RefreshToken", back_populates="user") # Refresh_token
    # Właściwość obliczana - pełne imię i nazwisko
-   @property
-   def full_name(self):
-       return f"{self.first_name} {self.last_name}"

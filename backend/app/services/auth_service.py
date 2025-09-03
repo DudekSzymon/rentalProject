@@ -23,7 +23,7 @@ class AuthService:
         return self.pwd_context.hash(password)
     
     def verify_password(self, plain_password: str, hashed_password: str) -> bool:
-        return self.pwd_context.verify(plain_password, hashed_password or "")
+        return self.pwd_context.verify(plain_password, hashed_password or "")   #"" zabezpieczenie jakby użytkownik hasła nie miał
     
     def _hash_token(self, token: str) -> str:
         return hashlib.sha256(token.encode()).hexdigest()
@@ -53,9 +53,6 @@ class AuthService:
         access_token = self.create_access_token({"sub": str(user_id)})
         refresh_token = self.create_refresh_token(user_id, db)
         return access_token, refresh_token
-    
-    def create_access_token_only(self, user_id: int) -> str:
-        return self.create_access_token({"sub": str(user_id)})
     
     def verify_refresh_token(self, refresh_token: str, db: Session) -> Optional[User]:
         token_hash = self._hash_token(refresh_token)

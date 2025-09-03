@@ -64,9 +64,3 @@ class Rental(Base):
         if self.actual_return_date:
             return (self.actual_return_date - self.start_date).days
         return (self.end_date - self.start_date).days
-    
-    @property
-    def is_overdue(self):
-        """Sprawdza czy wypożyczenie jest przeterminowane"""
-        return (self.status in [RentalStatus.ACTIVE, RentalStatus.CONFIRMED] 
-                and datetime.now() > self.end_date)

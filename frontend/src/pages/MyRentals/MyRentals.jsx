@@ -29,10 +29,8 @@ const MyRentals = () => {
   const [filter, setFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [authChecked, setAuthChecked] = useState(false);
-  const [isInitializing, setIsInitializing] = useState(true);
 
-  const { user, isLoading: authLoading, checkAndRefreshAuth } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
   // Mapowanie statusów na polskie nazwy i kolory
@@ -54,58 +52,19 @@ const MyRentals = () => {
     },
   };
 
-  // Sprawdzanie uwierzytelnienia z obsługą refresh token
+  // Sprawdzanie uwierzytelnienia
   useEffect(() => {
-    const initializeAuth = async () => {
-      setIsInitializing(true);
-
-      try {
-        // Sprawdź czy jest refresh token w localStorage
-        const refreshToken =
-          localStorage.getItem("refresh_token") ||
-          sessionStorage.getItem("refresh_token");
-
-        if (refreshToken && !user && !authLoading) {
-          // Spróbuj odświeżyć token jeśli funkcja istnieje
-          if (checkAndRefreshAuth) {
-            await checkAndRefreshAuth();
-          }
-        }
-
-        // Poczekaj chwilę na zakończenie procesu uwierzytelnienia
-        setTimeout(() => {
-          setAuthChecked(true);
-          setIsInitializing(false);
-
-          // Jeśli nadal nie ma użytkownika i nie ma refresh token, przekieruj na login
-          if (!user && !refreshToken && !authLoading) {
-            navigate("/login");
-          }
-        }, 500); // Zwiększone opóźnienie dla pewności
-      } catch (error) {
-        console.error("Błąd podczas inicjalizacji uwierzytelnienia:", error);
-        setAuthChecked(true);
-        setIsInitializing(false);
-
-        // Jeśli błąd, sprawdź czy jest refresh token
-        const refreshToken =
-          localStorage.getItem("refresh_token") ||
-          sessionStorage.getItem("refresh_token");
-        if (!refreshToken) {
-          navigate("/login");
-        }
-      }
-    };
-
-    initializeAuth();
-  }, [user, authLoading, navigate, checkAndRefreshAuth]);
+    if (!authLoading && !user) {
+      navigate("/login");
+    }
+  }, [user, authLoading, navigate]);
 
   // Pobieranie danych tylko gdy użytkownik jest zalogowany
   useEffect(() => {
-    if (user && authChecked && !isInitializing) {
+    if (user && !authLoading) {
       fetchRentals();
     }
-  }, [user, filter, currentPage, authChecked, isInitializing]);
+  }, [user, filter, currentPage, authLoading]);
 
   const fetchRentals = async () => {
     if (!user) return;
@@ -125,23 +84,7 @@ const MyRentals = () => {
       setRentals(data.items || []);
       setTotalPages(data.pages || 1);
     } catch (err) {
-      // Jeśli błąd 401 (Unauthorized), spróbuj odświeżyć token
-      if (err.status === 401 && checkAndRefreshAuth) {
-        try {
-          await checkAndRefreshAuth();
-          // Spróbuj ponownie po odświeżeniu tokenu
-          const response = await rentalsAPI.getAll(params);
-          const data = response.data;
-          setRentals(data.items || []);
-          setTotalPages(data.pages || 1);
-        } catch (refreshError) {
-          console.error("Błąd odświeżania tokenu:", refreshError);
-          setError("Sesja wygasła. Zaloguj się ponownie.");
-          navigate("/login");
-        }
-      } else {
-        setError(err.message || "Błąd pobierania wypożyczeń");
-      }
+      setError(err.message || "Błąd pobierania wypożyczeń");
     } finally {
       setLoading(false);
     }
@@ -177,8 +120,8 @@ const MyRentals = () => {
     { value: "cancelled", label: "Anulowane" },
   ];
 
-  // Pokazuj loading podczas sprawdzania uwierzytelnienia lub ładowania AuthContext
-  if (isInitializing || authLoading || !authChecked) {
+  // Pokazuj loading podczas sprawdzania uwierzytelnienia
+  if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
         <div className="text-center bg-white rounded-2xl p-12 border border-gray-200 shadow-sm">
@@ -186,9 +129,7 @@ const MyRentals = () => {
             <RotateCcw className="w-12 h-12 animate-spin text-blue-500 mx-auto mb-6" />
           </div>
           <p className="text-gray-900 text-lg font-medium">
-            {authLoading
-              ? "Sprawdzanie uwierzytelnienia..."
-              : "Inicjalizacja..."}
+            Sprawdzanie uwierzytelnienia...
           </p>
           <p className="text-gray-600 text-sm mt-2">Proszę czekać</p>
         </div>

@@ -9,7 +9,8 @@ from .controllers import (
     equipment_controller,
     rental_controller,
     payment_controller,
-    admin_controller
+    admin_controller,
+    test_controller
 )
 
 # Tworzenie aplikacji FastAPI
@@ -27,7 +28,7 @@ app.include_router(equipment_controller.router, prefix="/api/equipment", tags=["
 app.include_router(rental_controller.router, prefix="/api/rentals", tags=["Rentals"])
 app.include_router(payment_controller.router, prefix="/api/payments", tags=["Payments"])
 app.include_router(admin_controller.router, prefix="/api/admin", tags=["Admin"])
-
+app.include_router(test_controller.router, prefix="/api/test", tags=["Test"])
 @app.on_event("startup")
 async def startup_event():
     """Inicjalizacja bazy danych przy starcie"""
